@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "SurfaceNavigation",
+	"Description": "SurfaceNavigation is a surface-based navigation and movement system with baked surface graph pathfinding.",
+	"Category": "Other",
+	"CreatedBy": "Mrz740",
+	"CreatedByURL": "https://github.com/Mrz740",
+	"DocsURL": "https://github.com/Mrz740/SurfaceNavigation",
+	"MarketplaceURL": "",
+	"SupportURL": "https://github.com/Mrz740/SurfaceNavigation/issues",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "SurfaceNavigation",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "SurfaceNavigationEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	]
+}
