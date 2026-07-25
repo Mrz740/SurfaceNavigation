@@ -1,5 +1,7 @@
 # SurfaceNavigation
 
+[![Automation Tests](https://github.com/Mrz740/SurfaceNavigation/actions/workflows/tests.yml/badge.svg)](https://github.com/Mrz740/SurfaceNavigation/actions/workflows/tests.yml)
+
 A from-scratch surface-based (floor/wall/ceiling) navigation and movement system for Unreal
 Engine 5, built as a standalone, plug-and-play plugin.
 

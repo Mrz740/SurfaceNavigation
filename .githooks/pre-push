@@ -1,0 +1,27 @@
+#!/bin/sh
+# Runs the SurfaceGraph automation test suite before allowing a push.
+# Override UE_EDITOR_CMD if your UnrealEditor-Cmd.exe lives somewhere other than the default below.
+
+DEFAULT_UE_CMD="/c/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe"
+UE_CMD="${UE_EDITOR_CMD:-$DEFAULT_UE_CMD}"
+
+if [ ! -f "$UE_CMD" ]; then
+    echo "pre-push: UnrealEditor-Cmd.exe not found at: $UE_CMD"
+    echo "pre-push: set the UE_EDITOR_CMD environment variable to your UnrealEditor-Cmd.exe path."
+    exit 1
+fi
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+PROJECT="$PROJECT_ROOT/CrawlerPlugin.uproject"
+TEST_NAME="SurfaceNavigation.SurfaceGraph.TwoNodePortalGraph"
+
+echo "pre-push: running automation tests..."
+"$UE_CMD" "$PROJECT" -ExecCmds="Automation RunTests $TEST_NAME;Quit" -unattended -nopause -nullrhi -log
+
+if [ $? -ne 0 ]; then
+    echo "pre-push: automation tests failed. Push aborted."
+    exit 1
+fi
+
+echo "pre-push: automation tests passed."
+exit 0

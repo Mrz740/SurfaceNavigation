@@ -1,0 +1,20 @@
+name: Automation Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    runs-on: [ self-hosted, UE5 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run SurfaceGraph automation tests
+        shell: bash
+        run: |
+          "${UE_EDITOR_CMD:-/c/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe}" "$GITHUB_WORKSPACE/CrawlerPlugin.uproject" -ExecCmds="Automation RunTests SurfaceNavigation.SurfaceGraph.TwoNodePortalGraph;Quit" -unattended -nopause -nullrhi -log
