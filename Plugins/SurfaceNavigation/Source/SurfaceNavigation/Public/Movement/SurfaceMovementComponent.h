@@ -38,6 +38,8 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 {
 	GENERATED_BODY()
 	
+	friend class FSurfaceMovementReadPhaseTests;
+	
 	UPROPERTY()
 	FSurfaceProbeResult PendingProbeResult;
 	UPROPERTY()
@@ -51,4 +53,6 @@ public:
 	virtual void ExecuteReadPhase() override;
 	virtual void ExecuteSimulatePhase() override;
 	virtual void ExecuteCommitPhase() override;
+	
+	const FSurfaceState& GetCommittedState() const { return CommittedState; };
 };

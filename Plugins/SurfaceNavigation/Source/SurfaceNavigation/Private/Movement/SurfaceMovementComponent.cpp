@@ -15,6 +15,20 @@ USurfaceMovementComponent::USurfaceMovementComponent()
 
 void USurfaceMovementComponent::ExecuteReadPhase()
 {
+	const AActor* Owner = GetOwner();
+	const FVector Origin = Owner->GetActorLocation();
+	const FVector Direction = -CommittedState.SurfaceNormal;
+	
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Owner);
+	
+	FHitResult Hit;
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,
+		Origin,Origin + Direction * ProbeDistance, ECC_WorldStatic, Params);
+	
+	PendingProbeResult.bIsOnSurface = bHit;
+	PendingProbeResult.SurfaceNormal = bHit ? Hit.ImpactNormal : CommittedState.SurfaceNormal;
+	PendingProbeResult.ImpactPoint = Hit.ImpactPoint;
 }
 
 void USurfaceMovementComponent::ExecuteSimulatePhase()
