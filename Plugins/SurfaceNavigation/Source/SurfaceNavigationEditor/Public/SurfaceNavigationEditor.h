@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright (c) Mrz740. Licensed under the MIT License.
 
 #pragma once
 

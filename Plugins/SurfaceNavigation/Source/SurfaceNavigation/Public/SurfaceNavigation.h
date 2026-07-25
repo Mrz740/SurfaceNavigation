@@ -1,10 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright (c) Mrz740. Licensed under the MIT License.
 
 #pragma once
 
 #include "Modules/ModuleManager.h"
 
-class FSurfaceNavigationEditorModule : public IModuleInterface
+class FSurfaceNavigationModule : public IModuleInterface
 {
 public:
 
