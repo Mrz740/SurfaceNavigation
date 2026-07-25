@@ -1,15 +1,15 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright (c) Mrz740. Licensed under the MIT License.
 
 #include "SurfaceNavigation.h"
 
 #define LOCTEXT_NAMESPACE "FSurfaceNavigationModule"
 
-void FSurfaceNavigationEditorModule::StartupModule()
+void FSurfaceNavigationModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 }
 
-void FSurfaceNavigationEditorModule::ShutdownModule()
+void FSurfaceNavigationModule::ShutdownModule()
 {
 	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
 	// we call this function before unloading the module.
@@ -17,4 +17,4 @@ void FSurfaceNavigationEditorModule::ShutdownModule()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FSurfaceNavigationEditorModule, SurfaceNavigation)
+IMPLEMENT_MODULE(FSurfaceNavigationModule, SurfaceNavigation)
