@@ -11,7 +11,7 @@ USTRUCT()
 struct FSurfaceProbeResult
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY()
 	bool bIsOnSurface = false;
 	UPROPERTY()
@@ -24,7 +24,7 @@ USTRUCT()
 struct FSurfaceState
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY()
 	bool bIsOnSurface = false;
 	UPROPERTY()
@@ -37,9 +37,6 @@ UCLASS(ClassGroup=(Movement), meta=(BlueprintSpawnableComponent))
 class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, public ISurfacePhaseParticipant
 {
 	GENERATED_BODY()
-	
-	friend class FSurfaceMovementReadPhaseTests;
-	friend class FSurfaceMovementMovementTest;
 
 	UPROPERTY()
 	FSurfaceProbeResult PendingProbeResult;
@@ -55,7 +52,7 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 	float PendingSpeed = 0.f;
 	UPROPERTY()
 	float CommittedSpeed = 0.f;
-	
+
 	UPROPERTY(EditAnywhere)
 	bool bSweepMovement = true;
 	UPROPERTY(EditAnywhere)
@@ -75,8 +72,10 @@ public:
 	virtual void ExecuteReadPhase() override;
 	virtual void ExecuteSimulatePhase() override;
 	virtual void ExecuteCommitPhase() override;
-	
+
 	const FSurfaceState& GetCommittedState() const { return CommittedState; };
+	const FSurfaceProbeResult& GetPendingProbeResult() const { return PendingProbeResult; };
+	const float& GetDefaultAcceptanceRadius() const { return DefaultAcceptanceRadius; };
 
 	UFUNCTION(BlueprintCallable)
 	void SetMovementTarget(const FVector WorldTargetPosition);
