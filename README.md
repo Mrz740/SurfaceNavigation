@@ -1,5 +1,7 @@
 # SurfaceNavigation
 
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=Mrz740_SurfaceNavigation2&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Mrz740_SurfaceNavigation2)
+
 A from-scratch surface-based (floor/wall/ceiling) navigation and movement system for Unreal
 Engine 5, built as a standalone, plug-and-play plugin.
 

@@ -33,3 +33,25 @@ AActor* FSurfaceMovementTestWorld::SpawnFlatPrimitive(const FVector& Location, c
 	Actor->SetActorRotation(FQuat::FindBetweenNormals(FVector::UpVector, Normal).Rotator());
 	return Actor;
 }
+
+AActor* FSurfaceMovementTestWorld::SpawnMovementActor(const FVector& Location) const
+{
+	AActor* Actor = World->SpawnActor<AActor>();
+	
+	USceneComponent* SceneComponent = NewObject<USceneComponent>(Actor);
+	SceneComponent->RegisterComponent();
+	
+	Actor->SetRootComponent(SceneComponent);
+	Actor->SetActorLocation(Location);
+	Actor->SetActorRotation(FQuat::Identity.Rotator());
+	
+	USurfaceMovementComponent* MovementComponent = NewObject<USurfaceMovementComponent>(Actor);
+	MovementComponent->RegisterComponent();
+
+	return Actor;
+}
+
+void FSurfaceMovementTestWorld::TickWorld(float DeltaTime) const
+{
+	World->Tick(LEVELTICK_All, DeltaTime);
+}

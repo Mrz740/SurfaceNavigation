@@ -39,14 +39,36 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 	GENERATED_BODY()
 	
 	friend class FSurfaceMovementReadPhaseTests;
-	
+	friend class FSurfaceMovementMovementTest;
+
 	UPROPERTY()
 	FSurfaceProbeResult PendingProbeResult;
 	UPROPERTY()
 	FSurfaceState CommittedState;
+	UPROPERTY()
+	bool bHasPendingTarget = false;
+	UPROPERTY()
+	FVector PendingTarget;
+	UPROPERTY()
+	FVector PendingMoveDelta;
+	UPROPERTY()
+	float PendingSpeed = 0.f;
+	UPROPERTY()
+	float CommittedSpeed = 0.f;
+	
+	UPROPERTY(EditAnywhere)
+	bool bSweepMovement = true;
+	UPROPERTY(EditAnywhere)
+	float DefaultAcceptanceRadius = 25.f;
+	UPROPERTY(EditAnywhere)
+	float AccelerationRate = 200.f;
+	UPROPERTY(EditAnywhere)
+	float MaxSpeed = 400.f;
 	UPROPERTY(EditAnywhere)
 	float ProbeDistance = 100.0f;
-	
+	UPROPERTY(EditAnywhere)
+	float RotationSlerpSpeed = 5.f;
+
 public:
 	USurfaceMovementComponent();
 
@@ -55,4 +77,7 @@ public:
 	virtual void ExecuteCommitPhase() override;
 	
 	const FSurfaceState& GetCommittedState() const { return CommittedState; };
+
+	UFUNCTION(BlueprintCallable)
+	void SetMovementTarget(const FVector WorldTargetPosition);
 };
