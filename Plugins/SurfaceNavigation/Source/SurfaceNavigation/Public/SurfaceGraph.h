@@ -41,6 +41,14 @@ struct FSurfaceGraphEdge
 	int32 NodeAIndex = INDEX_NONE;
 	UPROPERTY()
 	int32 NodeBIndex = INDEX_NONE;
+	UPROPERTY()
+	int32 PortalSlotA = INDEX_NONE;
+	UPROPERTY()
+	int32 PortalSlotB = INDEX_NONE;
+	UPROPERTY()
+	bool bRequiresReorientation = false;
+	UPROPERTY()
+	bool bIsGapBridge = false;
 };
 
 UCLASS()
@@ -58,7 +66,8 @@ class SURFACENAVIGATION_API USurfaceGraph : public UObject
 public:
 	const FSurfaceGraphNode* GetNode(const int32 NodeIndex) const;
 	const FSurfaceGraphEdge* GetEdge(const int32 EdgeIndex) const;
-
+	const FVector* GetVertex(const int32 VertexIndex) const;
+	
 	bool AddNeighborEdgeToNode(const int32 NodeIndex, const int32 EdgeIndex);
 	bool IsPointInPolygon(const FSurfaceGraphNode& Node, const FVector& Point) const;
 	

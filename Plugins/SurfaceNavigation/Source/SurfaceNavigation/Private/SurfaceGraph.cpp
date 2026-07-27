@@ -21,6 +21,15 @@ const FSurfaceGraphEdge* USurfaceGraph::GetEdge(const int32 EdgeIndex) const
 	return nullptr;
 }
 
+const FVector* USurfaceGraph::GetVertex(const int32 VertexIndex) const
+{
+	if (SharedVertices.IsValidIndex(VertexIndex))
+	{
+		return &SharedVertices[VertexIndex];
+	}
+	return nullptr;
+}
+
 bool USurfaceGraph::AddNeighborEdgeToNode(const int32 NodeIndex, const int32 EdgeIndex)
 {
 	if (Nodes.IsValidIndex(NodeIndex) && Edges.IsValidIndex(EdgeIndex))
