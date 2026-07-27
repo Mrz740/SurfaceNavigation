@@ -15,16 +15,12 @@ FSurfaceGraphAStarAdapter::FSurfaceGraphAStarAdapter(const USurfaceGraph& InGrap
 	}
 	
 	PortalMidpointsA.Reserve(SurfaceGraph.GetEdgeCount());
+	PortalMidpointsB.Reserve(SurfaceGraph.GetEdgeCount());
+
 	for (int32 i = 0; i < SurfaceGraph.GetEdgeCount(); i++)
 	{
 		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(i);
 		PortalMidpointsA.Add(ResolvePortalMidpoint(EdgePtr->NodeAIndex, EdgePtr->PortalSlotA));
-	}
-	
-	PortalMidpointsB.Reserve(SurfaceGraph.GetEdgeCount());
-	for (int32 i = 0; i < SurfaceGraph.GetEdgeCount(); i++)
-	{
-		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(i);
 		PortalMidpointsB.Add(ResolvePortalMidpoint(EdgePtr->NodeBIndex, EdgePtr->PortalSlotB));
 	}
 }
@@ -35,7 +31,7 @@ void FSurfaceGraphAStarAdapter::GetNeighbors(const int32 NodeID, TArray<int32>& 
 	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(NodeID);
 	if (NodePtr == nullptr) return;
 	
-	for (const int32 EdgeIndex : NodePtr->OuterBoundaryIndices)
+	for (const int32 EdgeIndex : NodePtr->NeighborEdgeIndices)
 	{
 		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(EdgeIndex);
 		if (EdgePtr == nullptr) continue;
@@ -59,6 +55,8 @@ float FSurfaceGraphAStarAdapter::GetHeuristic(const int32 FromNodeID, const int3
 FVector FSurfaceGraphAStarAdapter::ResolvePortalMidpoint(const int32 NodeIndex, const int32 Slot) const
 {
 	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(NodeIndex);
+	checkf(NodePtr != nullptr,
+		TEXT("Node %d is not a valid index"), NodeIndex);
 	const int32 Count = NodePtr->OuterBoundaryIndices.Num();
 	checkf(NodePtr->OuterBoundaryIndices.IsValidIndex(Slot),
 		TEXT("Portal slot %d is not a valid index into node %d's OuterBoundaryIndices (Num=%d)"), Slot, NodeIndex, Count);
