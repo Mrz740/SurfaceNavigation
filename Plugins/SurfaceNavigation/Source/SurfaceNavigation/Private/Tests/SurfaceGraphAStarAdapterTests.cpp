@@ -25,8 +25,12 @@ bool FSurfaceGraphAStarAdapterTests::RunTest(const FString& Parameters)
 
 	Adapter.GetNeighbors(999,Neighbors);
 	const bool bResult5 = TestEqual(TEXT("Out-of-range NodeID should Reset the array to zero neighbors, not leave the previous call's results"), Neighbors.Num(),0);
-
-	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5;
+	
+	const bool bResult6 = TestEqual(TEXT("GetCost(NodeA, NodeB) should be twice the center-to-portal-midpoint distance, since both sides' portal midpoints coincide at (5,5,0) in this symmetric fixture, collapsing the middle leg of the three-segment sum to zero"),Adapter.GetCost(Fixture.NodeAIndex, Fixture.NodeBIndex), 4.714f, KINDA_SMALL_NUMBER);
+	const bool bResult7 = TestEqual(TEXT("GetCost(NodeB, NodeA) should match GetCost(NodeA, NodeB) by the fixture's symmetry, and exercises the adapter's NodeB-is-A-side branch instead of NodeA's"),Adapter.GetCost(Fixture.NodeBIndex, Fixture.NodeAIndex), 4.714f, KINDA_SMALL_NUMBER);
+	const bool bResult8 = TestEqual(TEXT("GetHeuristic(NodeA, NodeB) should equal straight-line center-to-center distance, which coincidentally equals GetCost here only because this fixture's portal midpoint sits exactly on the line between both centers"),Adapter.GetHeuristic(Fixture.NodeAIndex, Fixture.NodeBIndex), 4.714f, KINDA_SMALL_NUMBER);
+	
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
