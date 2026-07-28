@@ -76,6 +76,11 @@ float FSurfaceGraphAStarAdapter::GetCost(const int32 FromNodeID, const int32 ToN
 
 float FSurfaceGraphAStarAdapter::GetHeuristic(const int32 FromNodeID, const int32 GoalNodeID) const
 {
+	if (SurfaceGraph.GetNode(FromNodeID) == nullptr || SurfaceGraph.GetNode(GoalNodeID) == nullptr)
+	{
+		return 0.0f;
+	}
+
 	return FVector::Dist(NodeCenters[FromNodeID],NodeCenters[GoalNodeID]);
 }
 
