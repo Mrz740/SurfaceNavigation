@@ -19,6 +19,8 @@ namespace
 bool FindAStarPath(const IAStarGraphAdapter& Adapter, const int32 StartNodeID, const int32 GoalNodeID,
 	TArray<int32>& OutPath)
 {
+	OutPath.Reset();
+	
 	TArray<FOpenSetEntry> OpenSet;
 	TMap<int32, FSearchNodeState> NodeStates;
 	TArray<int32> Neighbors;
