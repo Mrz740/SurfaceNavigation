@@ -47,6 +47,8 @@ float FSurfaceGraphAStarAdapter::GetCost(const int32 FromNodeID, const int32 ToN
 	
 	checkf(NodePtr != nullptr, TEXT("Node %d is not a valid index"), FromNodeID);
 	
+	if (NodePtr == nullptr) return 0.0f;
+	
 	for (const int32 EdgeIndex : NodePtr->NeighborEdgeIndices)
 	{
 		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(EdgeIndex);

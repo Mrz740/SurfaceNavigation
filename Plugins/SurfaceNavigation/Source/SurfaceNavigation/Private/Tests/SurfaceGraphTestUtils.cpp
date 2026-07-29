@@ -4,15 +4,15 @@ FTwoNodeDiagonalSquareFixture SurfaceGraphTestUtils::BuildTwoNodeDiagonalSquareG
 {
 	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
 	FTwoNodeDiagonalSquareFixture Fixture;
-	
-	int32 Idx0 = SurfaceGraph->AddVertex(FVector(0, 0, 0));
-	int32 Idx1 = SurfaceGraph->AddVertex(FVector(10, 0, 0));
-	int32 Idx2 = SurfaceGraph->AddVertex(FVector(10, 10, 0));
-	int32 Idx3 = SurfaceGraph->AddVertex(FVector(0, 10, 0));
 
-	const int32 NodeAIndex = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, Idx0, Idx1, Idx2, FVector(0,0,1));
-	const int32 NodeBIndex = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, Idx2, Idx3, Idx0, FVector(0,0,1));
-	const int32 EdgeIndex = SurfaceGraphTestUtils::AddPortalEdge(*SurfaceGraph, NodeAIndex, 2, NodeBIndex, 2, false, false);
+	const int32 Idx0 = SurfaceGraph->AddVertex(FVector(0, 0, 0));
+	const int32 Idx1 = SurfaceGraph->AddVertex(FVector(10, 0, 0));
+	const int32 Idx2 = SurfaceGraph->AddVertex(FVector(10, 10, 0));
+	const int32 Idx3 = SurfaceGraph->AddVertex(FVector(0, 10, 0));
+
+	const int32 NodeAIndex = AddTriangleNode(*SurfaceGraph, Idx0, Idx1, Idx2, FVector(0,0,1));
+	const int32 NodeBIndex = AddTriangleNode(*SurfaceGraph, Idx2, Idx3, Idx0, FVector(0,0,1));
+	const int32 EdgeIndex = AddPortalEdge(*SurfaceGraph, NodeAIndex, 2, NodeBIndex, 2, false, false);
 
 	Fixture.Graph = SurfaceGraph;
 	Fixture.NodeAIndex = NodeAIndex;
@@ -30,19 +30,19 @@ FDecoyCycleGraphFixture SurfaceGraphTestUtils::BuildDecoyCycleGraph()
 	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
 	FDecoyCycleGraphFixture Fixture;
 	
-	const int32 IdxA = SurfaceGraph->AddVertex(FVector(0, 0, 0));
-	const int32 IdxB = SurfaceGraph->AddVertex(FVector(10, 0, 0));
-	const int32 IdxC = SurfaceGraph->AddVertex(FVector(10, 10, 0));
-	const int32 IdxD = SurfaceGraph->AddVertex(FVector(0, 10, 0));
-	const int32 IdxE = SurfaceGraph->AddVertex(FVector(20, 10, 0));
-	const int32 IdxF = SurfaceGraph->AddVertex(FVector(20, 20, 0));
-	const int32 IdxH = SurfaceGraph->AddVertex(FVector(10, 20, 0));
+	const int32 Idx0= SurfaceGraph->AddVertex(FVector(0, 0, 0));
+	const int32 Idx1 = SurfaceGraph->AddVertex(FVector(10, 0, 0));
+	const int32 Idx2 = SurfaceGraph->AddVertex(FVector(10, 10, 0));
+	const int32 Idx3 = SurfaceGraph->AddVertex(FVector(0, 10, 0));
+	const int32 Idx4 = SurfaceGraph->AddVertex(FVector(20, 10, 0));
+	const int32 Idx5 = SurfaceGraph->AddVertex(FVector(20, 20, 0));
+	const int32 Idx6 = SurfaceGraph->AddVertex(FVector(10, 20, 0));
 	
-	const int32 NodeSIndex = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, IdxC, IdxD, IdxA, FVector(0,0,1));
-	const int32 NodeM1Index = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, IdxA, IdxB, IdxC, FVector(0,0,1));
-	const int32 NodeM2Index = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, IdxE, IdxC, IdxB, FVector(0,0,1));
-	const int32 NodeM3Index = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, IdxC, IdxE, IdxF, FVector(0,0,1));
-	const int32 NodeGIndex = SurfaceGraphTestUtils::AddTriangleNode(*SurfaceGraph, IdxF, IdxH, IdxC, FVector(0,0,1));
+	const int32 NodeSIndex = AddTriangleNode(*SurfaceGraph, Idx2, Idx3, Idx0, FVector(0,0,1));
+	const int32 NodeM1Index = AddTriangleNode(*SurfaceGraph, Idx0, Idx1, Idx2, FVector(0,0,1));
+	const int32 NodeM2Index = AddTriangleNode(*SurfaceGraph, Idx4, Idx2, Idx1, FVector(0,0,1));
+	const int32 NodeM3Index = AddTriangleNode(*SurfaceGraph, Idx2, Idx4, Idx5, FVector(0,0,1));
+	const int32 NodeGIndex = AddTriangleNode(*SurfaceGraph, Idx5, Idx6, Idx2, FVector(0,0,1));
 
 	AddPortalEdge(*SurfaceGraph, NodeSIndex, 2, NodeM1Index, 2, false, false);
 	AddPortalEdge(*SurfaceGraph, NodeM1Index, 1, NodeM2Index, 1, false, false);
@@ -56,6 +56,40 @@ FDecoyCycleGraphFixture SurfaceGraphTestUtils::BuildDecoyCycleGraph()
 	Fixture.NodeM2Index = NodeM2Index;
 	Fixture.NodeM3Index = NodeM3Index;
 	Fixture.NodeGIndex = NodeGIndex;
+	
+	return Fixture;
+}
+
+FMultiTriangleNodeFixture SurfaceGraphTestUtils::BuildMultiTriangleNodeGraph()
+{
+	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
+	FMultiTriangleNodeFixture Fixture;
+	
+	const int32 IdxA = SurfaceGraph->AddVertex(FVector(0, 0, 0));
+	const int32 IdxB = SurfaceGraph->AddVertex(FVector(24, 0, 0));
+	const int32 IdxC = SurfaceGraph->AddVertex(FVector(0, 18, 0));
+	const int32 IdxAB = SurfaceGraph->AddVertex(FVector(16, 0, 0));
+	const int32 IdxBC = SurfaceGraph->AddVertex(FVector(12, 9, 0));
+	const int32 IdxCA = SurfaceGraph->AddVertex(FVector(0, 9, 0));
+	
+	FSurfaceGraphNode Node;
+	Node.OuterBoundaryIndices = {IdxA, IdxAB, IdxB, IdxBC, IdxC, IdxCA};
+	Node.TriangleVertexIndices = { 
+		IdxA,  IdxAB, IdxCA,	// T0 — ordinal 0
+		IdxAB, IdxB,  IdxBC,	// T1 — ordinal 1
+		IdxCA, IdxBC, IdxC,		// T2 — ordinal 2
+		IdxAB, IdxBC, IdxCA		// T3 — ordinal 3 (center)
+	};
+	
+	Node.Normal = FVector(0,0,1);
+	const int32 NodeIndex = SurfaceGraph->AddNode(Node);
+	
+	Fixture.Graph = SurfaceGraph;
+	Fixture.NodeIndex = NodeIndex;
+	Fixture.CornerTriangleIndex0 = 0;
+	Fixture.CornerTriangleIndex1 = 1;
+	Fixture.CornerTriangleIndex2 = 2;
+	Fixture.CenterTriangleIndex = 3;
 	
 	return Fixture;
 }

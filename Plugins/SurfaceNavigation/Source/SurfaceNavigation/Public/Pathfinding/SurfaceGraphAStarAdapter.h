@@ -10,9 +10,9 @@ public:
 	~FSurfaceGraphAStarAdapter() = default;
 	explicit FSurfaceGraphAStarAdapter(const USurfaceGraph& InGraph);
 
-	virtual void GetNeighbors(int32 NodeID, TArray<int32>& OutNeighbors) const override;
-	virtual float GetCost(int32 FromNodeID, int32 ToNodeID) const override;
-	virtual float GetHeuristic(int32 FromNodeID, int32 GoalNodeID) const override;
+	virtual void GetNeighbors(const int32 NodeID, TArray<int32>& OutNeighbors) const override;
+	virtual float GetCost(const int32 FromNodeID, const int32 ToNodeID) const override;
+	virtual float GetHeuristic(const int32 FromNodeID, const int32  GoalNodeID) const override;
 	
 private:
 	const USurfaceGraph& SurfaceGraph;
@@ -21,5 +21,5 @@ private:
 	TArray<FVector> PortalMidpointsB;
 	
 	// Helper functions
-	FVector ResolvePortalMidpoint(int32 NodeIndex, int32 Slot) const;
+	FVector ResolvePortalMidpoint(const int32 NodeIndex, const int32 Slot) const;
 };

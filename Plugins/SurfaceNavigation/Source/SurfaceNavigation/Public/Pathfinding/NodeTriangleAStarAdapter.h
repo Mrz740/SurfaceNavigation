@@ -11,9 +11,9 @@ public:
 	~FNodeTriangleAStarAdapter() = default;
 	explicit FNodeTriangleAStarAdapter(const USurfaceGraph& InGraph, const int32 InNodeIndex);	
 	
-	virtual void GetNeighbors(int32 NodeID, TArray<int32>& OutNeighbors) const override;
-	virtual float GetCost(int32 FromNodeID, int32 ToNodeID) const override;
-	virtual float GetHeuristic(int32 FromNodeID, int32 GoalNodeID) const override;
+	virtual void GetNeighbors(const int32 TriangleID, TArray<int32>& OutNeighbors) const override;
+	virtual float GetCost(const int32 FromTriangleID, const int32 ToTriangleID) const override;
+	virtual float GetHeuristic(const int32 FromTriangleID, const int32 GoalTriangleID) const override;
 	
 private:
 	struct FTriangleEdgeLink

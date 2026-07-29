@@ -30,7 +30,7 @@ public:
 	 * @param NodeID        The node whose neighbors are wanted.
 	 * @param OutNeighbors  On return, holds exactly NodeID's neighbors and nothing else.
 	 */
-	virtual void GetNeighbors(int32 NodeID, TArray<int32>& OutNeighbors) const = 0;
+	virtual void GetNeighbors(const int32 NodeID, TArray<int32>& OutNeighbors) const = 0;
 
 	/**
 	 * Both nodes must always be adjacent and the cost between them must be non-negative so A* and
@@ -45,7 +45,7 @@ public:
 	 * 
 	 * @return            The exact traversal cost between those two nodes. Never negative.
 	 */
-	virtual float GetCost(int32 FromNodeID, int32 ToNodeID) const = 0;
+	virtual float GetCost(const int32 FromNodeID, const int32 ToNodeID) const = 0;
 
 	/**
 	 * Unlike GetCost this is an estimate, and it is called with arbitrary pairs that are usually not
@@ -66,7 +66,7 @@ public:
 	 * 
 	 * @return            An underestimate of the remaining cost towards the goal. Never negative.
 	 */
-	virtual float GetHeuristic(int32 FromNodeID, int32 GoalNodeID) const = 0;
+	virtual float GetHeuristic(const int32 FromNodeID, const int32  GoalNodeID) const = 0;
 
 protected:
 	~IAStarGraphAdapter() = default;

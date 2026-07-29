@@ -21,12 +21,23 @@ struct FDecoyCycleGraphFixture
 	int32 NodeGIndex;
 };
 
+struct FMultiTriangleNodeFixture
+{
+	USurfaceGraph* Graph;
+	int32 NodeIndex;
+	int32 CornerTriangleIndex0;
+	int32 CornerTriangleIndex1;
+	int32 CornerTriangleIndex2;
+	int32 CenterTriangleIndex;
+};
+
 namespace SurfaceGraphTestUtils
 {
 	FTwoNodeDiagonalSquareFixture BuildTwoNodeDiagonalSquareGraph();
 	FDecoyCycleGraphFixture BuildDecoyCycleGraph();
+	FMultiTriangleNodeFixture BuildMultiTriangleNodeGraph();
+	
 	int32 AddIsolatedNode(USurfaceGraph& Graph);
-
 	int32 AddTriangleNode(USurfaceGraph& Graph, int32 V0, int32 V1, int32 V2, const FVector& Normal);
 	int32 AddPortalEdge(USurfaceGraph& Graph, int32 NodeAIndex, int32 SlotA, int32 NodeBIndex, int32 SlotB, bool bIsGapBridge, bool bRequiresReorientation);
 };

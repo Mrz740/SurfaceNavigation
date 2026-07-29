@@ -5,12 +5,12 @@ FNodeTriangleAStarAdapter::FNodeTriangleAStarAdapter(const USurfaceGraph& InGrap
 	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(InNodeIndex);
 	if (!NodePtr)
 	{
-		ensureMsgf(false, TEXT(""));
+		ensureMsgf(false, TEXT("Node %d is not a valid index; adapter will report no triangles"), InNodeIndex);
 		return;
 	}
-	
+
 	const TArray<int32>& Indices = NodePtr->TriangleVertexIndices;
-	ensureMsgf(Indices.Num() % 3 == 0, TEXT(""));
+	ensureMsgf(Indices.Num() % 3 == 0, TEXT("Node %d has %d triangle vertex indices, which is not a multiple of 3; the trailing partial triangle will be ignored"), InNodeIndex, Indices.Num());
 	const int32 TriangleCount = Indices.Num() / 3;
 	
 	TriangleCenters.Reserve(TriangleCount);
@@ -43,11 +43,11 @@ FNodeTriangleAStarAdapter::FNodeTriangleAStarAdapter(const USurfaceGraph& InGrap
 			
 			if (TriangleLinks[*Existing].NeighborOrdinal != INDEX_NONE)
 			{
-				ensureMsgf(false, TEXT(""));
+				ensureMsgf(false, TEXT("Non-manifold geometry in node %d: edge (%d, %d) is claimed by three or more triangles; treating triangle %d's edge %d as a border"), InNodeIndex, A, B, t, j);
 				continue;
 			}
-			
-			FVector MidPoint = (*SurfaceGraph.GetVertex(A) + *SurfaceGraph.GetVertex(B)) * 0.5;
+
+			const FVector MidPoint = (*SurfaceGraph.GetVertex(A) + *SurfaceGraph.GetVertex(B)) * 0.5;
 			
 			TriangleLinks[Slot].NeighborOrdinal = *Existing / 3;
 			TriangleLinks[Slot].EdgeMidpoint = MidPoint;
@@ -57,20 +57,51 @@ FNodeTriangleAStarAdapter::FNodeTriangleAStarAdapter(const USurfaceGraph& InGrap
 	}
 }
 
-void FNodeTriangleAStarAdapter::GetNeighbors(int32 NodeID, TArray<int32>& OutNeighbors) const
+void FNodeTriangleAStarAdapter::GetNeighbors(const int32 TriangleID, TArray<int32>& OutNeighbors) const
 {
 	OutNeighbors.Reset();
-	// TODO Implement this function
+	
+	if (!TriangleCenters.IsValidIndex(TriangleID)) return;
+	
+	for (int32 i = 0 ; i < 3; i++)
+	{
+		if (const int32 Ordinal = TriangleLinks[3 * TriangleID + i].NeighborOrdinal; Ordinal != INDEX_NONE)
+		{
+			OutNeighbors.Add(Ordinal);
+		}
+	}
 }
 
-float FNodeTriangleAStarAdapter::GetCost(int32 FromNodeID, int32 ToNodeID) const
+float FNodeTriangleAStarAdapter::GetCost(const int32 FromTriangleID, const int32 ToTriangleID) const
 {
-	// TODO Implement this function
+	if (!TriangleCenters.IsValidIndex(FromTriangleID))
+	{
+		checkf(false, TEXT("Triangle %d is not a valid index in node %d (TriangleCount=%d)"), FromTriangleID, NodeIndex, TriangleCenters.Num());
+		return 0.0f;
+	}
+	
+	for (int32 i = 0 ; i < 3; i++)
+	{
+		const FTriangleEdgeLink& Link = TriangleLinks[3 * FromTriangleID + i];
+		if (Link.NeighborOrdinal == INDEX_NONE) continue; 
+		if (Link.NeighborOrdinal == ToTriangleID)
+		{
+			const FVector M = Link.EdgeMidpoint;
+			return FVector::Dist(TriangleCenters[FromTriangleID],M) + FVector::Dist(M,TriangleCenters[ToTriangleID]);
+		}
+	}
+	
+	checkf(false, TEXT("No shared edge between triangles %d and %d in node %d"), FromTriangleID, ToTriangleID, NodeIndex);
+
 	return 0.0f;
 }
 
-float FNodeTriangleAStarAdapter::GetHeuristic(int32 FromNodeID, int32 GoalNodeID) const
+float FNodeTriangleAStarAdapter::GetHeuristic(const int32 FromTriangleID, const int32 GoalTriangleID) const
 {
-	// TODO Implement this function
-	return 0.0f;
+	if (!TriangleCenters.IsValidIndex(FromTriangleID) || !TriangleCenters.IsValidIndex(GoalTriangleID))
+	{
+		return 0.0f;
+	}
+	
+	return FVector::Dist(TriangleCenters[FromTriangleID], TriangleCenters[GoalTriangleID]);
 }
