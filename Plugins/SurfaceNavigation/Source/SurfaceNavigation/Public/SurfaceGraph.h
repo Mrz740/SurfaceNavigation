@@ -51,6 +51,13 @@ struct FSurfaceGraphEdge
 	bool bIsGapBridge = false;
 };
 
+enum class ELoopContainment : uint8
+{
+	Outside,
+	OnBoundary,
+	Inside
+};
+
 UCLASS()
 class SURFACENAVIGATION_API USurfaceGraph : public UObject
 {
@@ -71,6 +78,10 @@ public:
 	bool AddNeighborEdgeToNode(const int32 NodeIndex, const int32 EdgeIndex);
 	bool IsPointInPolygon(const FSurfaceGraphNode& Node, const FVector& Point) const;
 	
+	static void BuildPlaneBasis(const FVector& Normal, FVector& OutTangent1, FVector& OutTangent2);
+	
+	ELoopContainment TestPointAgainstLoop(TArrayView<const int32> LoopIndices, const FVector& Point, const FVector& Tangent1, const FVector& Tangent2) const;
+
 	// Single line getters, setters and adders without logic
 	int32 GetNodeCount() const { return Nodes.Num(); }
 	int32 GetEdgeCount() const { return Edges.Num(); }
@@ -81,9 +92,6 @@ public:
 	int32 AddVertex(const FVector& Vertex) { return SharedVertices.Add(Vertex); }
 	
 private:
-	bool IsPointOnLoopBoundary(const TArray<int32>& LoopIndices, const FVector2D& Point2D, const FVector& PlaneOrigin, const FVector& Tangent1, const FVector& Tangent2, float Epsilon) const;
-	bool TestLoop(const TArray<int32>& LoopIndices, const FVector2D& Point2D, const FVector& PlaneOrigin, const FVector& Tangent1, const FVector& Tangent2) const;
-	
 	static FVector2D Project2D(const FVector& Point3D, const FVector& PlaneOrigin, const FVector& Tangent1, const FVector& Tangent2);
 	static double DistancePointToSegment2D(const FVector2D& P, const FVector2D& A, const FVector2D& B);
 };
