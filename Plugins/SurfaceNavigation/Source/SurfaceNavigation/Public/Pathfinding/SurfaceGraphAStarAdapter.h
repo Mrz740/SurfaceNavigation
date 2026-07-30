@@ -19,7 +19,4 @@ private:
 	TArray<FVector> NodeCenters;
 	TArray<FVector> PortalMidpointsA;
 	TArray<FVector> PortalMidpointsB;
-	
-	// Helper functions
-	FVector ResolvePortalMidpoint(const int32 NodeIndex, const int32 Slot) const;
 };

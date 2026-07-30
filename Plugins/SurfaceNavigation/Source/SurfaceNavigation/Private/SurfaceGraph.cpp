@@ -66,6 +66,45 @@ bool USurfaceGraph::IsPointInPolygon(const FSurfaceGraphNode& Node, const FVecto
 	return true;
 }
 
+int32 USurfaceGraph::FindEdgeBetween(const int32 NodeAIndex, const int32 NodeBIndex) const
+{
+	int32 FoundEdgeIndex = INDEX_NONE;
+	const FSurfaceGraphNode* NodePtr = GetNode(NodeAIndex);
+	if (NodePtr == nullptr) return INDEX_NONE;
+	
+	for (int32 EdgeIndex : NodePtr->NeighborEdgeIndices)
+	{
+		const FSurfaceGraphEdge* EdgePtr = GetEdge(EdgeIndex);
+		
+		if (EdgePtr == nullptr) continue;
+
+		if ((EdgePtr->NodeAIndex == NodeAIndex && EdgePtr->NodeBIndex == NodeBIndex) ||
+			(EdgePtr->NodeAIndex == NodeBIndex && EdgePtr->NodeBIndex == NodeAIndex))
+			{
+				if (FoundEdgeIndex != INDEX_NONE)
+				{
+					ensureMsgf(false, TEXT("Nodes %d and %d are connected by more than one portal"
+						   " edge (%d and %d); returning the first"), NodeAIndex, NodeBIndex, FoundEdgeIndex, EdgeIndex);
+					continue;
+				}
+			FoundEdgeIndex = EdgeIndex;
+			}
+	}
+	return FoundEdgeIndex;
+}
+
+FVector USurfaceGraph::GetPortalMidpoint(const int32 NodeIndex, const int32 Slot) const
+{
+	const FSurfaceGraphNode* NodePtr = GetNode(NodeIndex);
+	checkf(NodePtr != nullptr, TEXT("Node %d is not a valid index"), NodeIndex);
+
+	const int32 Count = NodePtr->OuterBoundaryIndices.Num();
+	checkf(NodePtr->OuterBoundaryIndices.IsValidIndex(Slot), TEXT("Portal slot %d is not a valid index into node %d's OuterBoundaryIndices (Num=%d)"), Slot, NodeIndex, Count);
+
+	return (*GetVertex(NodePtr->OuterBoundaryIndices[Slot]) + 
+		*GetVertex(NodePtr->OuterBoundaryIndices[(Slot + 1) % Count])) * 0.5;
+}
+
 void USurfaceGraph::BuildPlaneBasis(const FVector& Normal, FVector& OutTangent1, FVector& OutTangent2)
 {
 	FVector ReferenceAxis;

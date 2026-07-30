@@ -20,8 +20,8 @@ FSurfaceGraphAStarAdapter::FSurfaceGraphAStarAdapter(const USurfaceGraph& InGrap
 	for (int32 i = 0; i < SurfaceGraph.GetEdgeCount(); i++)
 	{	
 		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(i);
-		PortalMidpointsA.Add(ResolvePortalMidpoint(EdgePtr->NodeAIndex, EdgePtr->PortalSlotA));
-		PortalMidpointsB.Add(ResolvePortalMidpoint(EdgePtr->NodeBIndex, EdgePtr->PortalSlotB));
+		PortalMidpointsA.Add(SurfaceGraph.GetPortalMidpoint(EdgePtr->NodeAIndex, EdgePtr->PortalSlotA));
+		PortalMidpointsB.Add(SurfaceGraph.GetPortalMidpoint(EdgePtr->NodeBIndex, EdgePtr->PortalSlotB));
 	}
 }
 
@@ -43,34 +43,15 @@ void FSurfaceGraphAStarAdapter::GetNeighbors(const int32 NodeID, TArray<int32>& 
 
 float FSurfaceGraphAStarAdapter::GetCost(const int32 FromNodeID, const int32 ToNodeID) const
 {
-	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(FromNodeID);
+	const int32 EdgeIndex = SurfaceGraph.FindEdgeBetween(FromNodeID, ToNodeID);
 	
-	checkf(NodePtr != nullptr, TEXT("Node %d is not a valid index"), FromNodeID);
-	
-	if (NodePtr == nullptr) return 0.0f;
-	
-	for (const int32 EdgeIndex : NodePtr->NeighborEdgeIndices)
+	if (EdgeIndex != INDEX_NONE)
 	{
-		const FSurfaceGraphEdge* EdgePtr = SurfaceGraph.GetEdge(EdgeIndex);
-		if (EdgePtr == nullptr) continue;
-		if (EdgePtr->NodeAIndex == FromNodeID && EdgePtr->NodeBIndex == ToNodeID)
-		{
-			const FVector FromMidPoint = PortalMidpointsA[EdgeIndex];
-			const FVector ToMidPoint = PortalMidpointsB[EdgeIndex];
-			return FVector::Dist(NodeCenters[FromNodeID],FromMidPoint) 
-				+ FVector::Dist(FromMidPoint,ToMidPoint) 
-				+ FVector::Dist(ToMidPoint,NodeCenters[ToNodeID]);
-		}
-		if (EdgePtr->NodeBIndex == FromNodeID && EdgePtr->NodeAIndex == ToNodeID)
-		{
-			const FVector FromMidPoint = PortalMidpointsB[EdgeIndex];
-			const FVector ToMidPoint = PortalMidpointsA[EdgeIndex];
-			return FVector::Dist(NodeCenters[FromNodeID],FromMidPoint) 
-				+ FVector::Dist(FromMidPoint,ToMidPoint) 
-				+ FVector::Dist(ToMidPoint,NodeCenters[ToNodeID]);
-		}
+		return FVector::Dist(NodeCenters[FromNodeID], PortalMidpointsA[EdgeIndex]) +
+			   FVector::Dist(PortalMidpointsA[EdgeIndex], PortalMidpointsB[EdgeIndex]) +
+			   FVector::Dist(PortalMidpointsB[EdgeIndex], NodeCenters[ToNodeID]);
 	}
-	
+
 	checkf(false, TEXT("No edge found between nodes %d and %d"), FromNodeID, ToNodeID);
 	
 	return 0.0f;
@@ -84,20 +65,4 @@ float FSurfaceGraphAStarAdapter::GetHeuristic(const int32 FromNodeID, const int3
 	}
 
 	return FVector::Dist(NodeCenters[FromNodeID],NodeCenters[GoalNodeID]);
-}
-
-FVector FSurfaceGraphAStarAdapter::ResolvePortalMidpoint(const int32 NodeIndex, const int32 Slot) const
-{
-	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(NodeIndex);
-	
-	checkf(NodePtr != nullptr, TEXT("Node %d is not a valid index"), NodeIndex);
-	
-	const int32 Count = NodePtr->OuterBoundaryIndices.Num();
-	
-	checkf(NodePtr->OuterBoundaryIndices.IsValidIndex(Slot), TEXT("Portal slot %d is not a valid index into node %d's OuterBoundaryIndices (Num=%d)"), Slot, NodeIndex, Count);
-	
-	const FVector First = *SurfaceGraph.GetVertex(NodePtr->OuterBoundaryIndices[Slot]);
-	const FVector Second = *SurfaceGraph.GetVertex(NodePtr->OuterBoundaryIndices[(Slot + 1) % Count]);
-	
-	return (First + Second) * 0.5f;
 }

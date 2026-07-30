@@ -31,11 +31,21 @@ struct FMultiTriangleNodeFixture
 	int32 CenterTriangleIndex;
 };
 
+struct FDuplicateEdgeFixture
+{
+	USurfaceGraph* Graph;
+	int32 NodeAIndex;
+	int32 NodeBIndex;
+	int32 FirstEdgeIndex;
+	int32 SecondEdgeIndex;
+};
+
 namespace SurfaceGraphTestUtils
 {
 	FTwoNodeDiagonalSquareFixture BuildTwoNodeDiagonalSquareGraph();
 	FDecoyCycleGraphFixture BuildDecoyCycleGraph();
 	FMultiTriangleNodeFixture BuildMultiTriangleNodeGraph();
+	FDuplicateEdgeFixture BuildDuplicateEdgeGraph();
 	
 	int32 AddIsolatedNode(USurfaceGraph& Graph);
 	int32 AddTriangleNode(USurfaceGraph& Graph, int32 V0, int32 V1, int32 V2, const FVector& Normal);

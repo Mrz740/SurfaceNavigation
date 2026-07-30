@@ -70,8 +70,15 @@ bool FSurfaceGraphTests::RunTest(const FString& Parameters)
 		bResult19 = TestTrue(TEXT("NodeB's portal slot should resolve to a boundary edge containing shared vertex Idx2"), First == Fixture.Idx2 || Second == Fixture.Idx2);
 	}
 	
+	const FDuplicateEdgeFixture DuplicateFixture = BuildDuplicateEdgeGraph();
+	TGuardValue SuppressEnsureErrors(FAutomationTestBase::bSuppressLogErrors, true);
+	const int32 FoundEdgeIndex = DuplicateFixture.Graph->FindEdgeBetween(DuplicateFixture.NodeAIndex, DuplicateFixture.NodeBIndex);
+
+	const bool bResult20 = TestEqual(TEXT("FindEdgeBetween should return the first-added edge when two portal edges connect the same node pair, per its documented first-wins contract"), FoundEdgeIndex, DuplicateFixture.FirstEdgeIndex);
+	
 	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9
-	&& bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 && bResult18 && bResult19;
+	&& bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 && bResult18 
+	&& bResult19 && bResult20;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

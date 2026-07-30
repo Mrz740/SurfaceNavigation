@@ -94,6 +94,30 @@ FMultiTriangleNodeFixture SurfaceGraphTestUtils::BuildMultiTriangleNodeGraph()
 	return Fixture;
 }
 
+FDuplicateEdgeFixture SurfaceGraphTestUtils::BuildDuplicateEdgeGraph()
+{
+	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
+	FDuplicateEdgeFixture Fixture;
+	
+	const int32 Idx0 = SurfaceGraph->AddVertex(FVector(0, 0, 0));
+	const int32 Idx1 = SurfaceGraph->AddVertex(FVector(10, 0, 0));
+	const int32 Idx2 = SurfaceGraph->AddVertex(FVector(10, 10, 0));
+	const int32 Idx3 = SurfaceGraph->AddVertex(FVector(0, 10, 0));
+
+	const int32 NodeAIndex = AddTriangleNode(*SurfaceGraph, Idx0, Idx1, Idx2, FVector(0,0,1));
+	const int32 NodeBIndex = AddTriangleNode(*SurfaceGraph, Idx2, Idx3, Idx0, FVector(0,0,1));
+	const int32 FirstEdgeIndex = AddPortalEdge(*SurfaceGraph, NodeAIndex, 0, NodeBIndex, 2, false, false);
+	const int32 SecondEdgeIndex = AddPortalEdge(*SurfaceGraph, NodeAIndex, 0, NodeBIndex, 2, false, false);
+
+	Fixture.Graph = SurfaceGraph;
+	Fixture.NodeAIndex = NodeAIndex;
+	Fixture.NodeBIndex = NodeBIndex;
+	Fixture.FirstEdgeIndex = FirstEdgeIndex;
+	Fixture.SecondEdgeIndex = SecondEdgeIndex;
+	
+	return Fixture;
+}
+
 int32 SurfaceGraphTestUtils::AddIsolatedNode(USurfaceGraph& Graph)
 {
 	const int32 IdxI1 = Graph.AddVertex(FVector(100, 100, 0));
