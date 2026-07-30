@@ -8,7 +8,9 @@ FNodeTriangleAStarAdapter::FNodeTriangleAStarAdapter(const USurfaceGraph& InGrap
 		ensureMsgf(false, TEXT("Node %d is not a valid index; adapter will report no triangles"), InNodeIndex);
 		return;
 	}
-
+	
+	USurfaceGraph::BuildPlaneBasis(NodePtr->Normal, CachedTangent1, CachedTangent2);
+	
 	const TArray<int32>& Indices = NodePtr->TriangleVertexIndices;
 	ensureMsgf(Indices.Num() % 3 == 0, TEXT("Node %d has %d triangle vertex indices, which is not a multiple of 3; the trailing partial triangle will be ignored"), InNodeIndex, Indices.Num());
 	const int32 TriangleCount = Indices.Num() / 3;
@@ -104,4 +106,40 @@ float FNodeTriangleAStarAdapter::GetHeuristic(const int32 FromTriangleID, const 
 	}
 	
 	return FVector::Dist(TriangleCenters[FromTriangleID], TriangleCenters[GoalTriangleID]);
+}
+
+bool FNodeTriangleAStarAdapter::FindNearestTriangle(const FVector& Point, int32& OutTriangleID) const
+{
+	OutTriangleID = INDEX_NONE;
+	const FSurfaceGraphNode* NodePtr = SurfaceGraph.GetNode(NodeIndex);
+	
+	if (TriangleCenters.IsEmpty()) return false;
+	
+	checkf(NodePtr != nullptr, TEXT("Node %d is not a valid index"), NodeIndex);
+
+	for (int32 t = 0; t < TriangleCenters.Num(); t++)
+	{
+		TArrayView TriVerts(NodePtr->TriangleVertexIndices.GetData() + 3 * t, 3);
+		
+		if (SurfaceGraph.TestPointAgainstLoop(TriVerts, Point, CachedTangent1, CachedTangent2) != ELoopContainment::Outside)
+		{
+			OutTriangleID = t;
+			return true;
+		}
+	}
+	
+	int32 BestTriangle = 0;
+	double BestDistSquared = FVector::DistSquared(Point, TriangleCenters[0]);
+
+	for (int32 t = 1; t < TriangleCenters.Num(); t++)
+	{
+		if (const double D = FVector::DistSquared(Point, TriangleCenters[t]); D < BestDistSquared)
+		{
+			BestDistSquared = D;
+			BestTriangle    = t;
+		}
+	}
+	
+	OutTriangleID = BestTriangle;
+	return true;
 }

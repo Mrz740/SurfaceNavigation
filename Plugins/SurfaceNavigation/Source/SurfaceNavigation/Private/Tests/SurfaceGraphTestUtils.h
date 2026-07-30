@@ -40,4 +40,5 @@ namespace SurfaceGraphTestUtils
 	int32 AddIsolatedNode(USurfaceGraph& Graph);
 	int32 AddTriangleNode(USurfaceGraph& Graph, int32 V0, int32 V1, int32 V2, const FVector& Normal);
 	int32 AddPortalEdge(USurfaceGraph& Graph, int32 NodeAIndex, int32 SlotA, int32 NodeBIndex, int32 SlotB, bool bIsGapBridge, bool bRequiresReorientation);
+	int32 AddEmptyNode(USurfaceGraph& Graph);
 };

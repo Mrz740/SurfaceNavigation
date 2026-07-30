@@ -133,3 +133,10 @@ int32 SurfaceGraphTestUtils::AddPortalEdge(USurfaceGraph& Graph, const int32 Nod
 
 	return EdgeIndex;
 }
+
+int32 SurfaceGraphTestUtils::AddEmptyNode(USurfaceGraph& Graph)
+{
+	FSurfaceGraphNode Node;
+	Node.Normal = FVector(0,0,1);
+	return Graph.AddNode(Node);
+}

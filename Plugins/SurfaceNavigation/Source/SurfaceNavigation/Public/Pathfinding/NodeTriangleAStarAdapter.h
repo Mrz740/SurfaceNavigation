@@ -9,12 +9,13 @@ class FNodeTriangleAStarAdapter final : public IAStarGraphAdapter
 {
 public:
 	~FNodeTriangleAStarAdapter() = default;
-	explicit FNodeTriangleAStarAdapter(const USurfaceGraph& InGraph, const int32 InNodeIndex);	
+	explicit FNodeTriangleAStarAdapter(const USurfaceGraph& InGraph, const int32 InNodeIndex);
 	
 	virtual void GetNeighbors(const int32 TriangleID, TArray<int32>& OutNeighbors) const override;
 	virtual float GetCost(const int32 FromTriangleID, const int32 ToTriangleID) const override;
 	virtual float GetHeuristic(const int32 FromTriangleID, const int32 GoalTriangleID) const override;
 	
+	bool FindNearestTriangle(const FVector& Point, int32& OutTriangleID) const;
 private:
 	struct FTriangleEdgeLink
 	{
@@ -26,4 +27,6 @@ private:
 	int32 NodeIndex = INDEX_NONE;
 	TArray<FVector> TriangleCenters;
 	TArray<FTriangleEdgeLink> TriangleLinks;
+	FVector CachedTangent1 = FVector::ZeroVector;
+	FVector CachedTangent2 = FVector::ZeroVector;
 };
