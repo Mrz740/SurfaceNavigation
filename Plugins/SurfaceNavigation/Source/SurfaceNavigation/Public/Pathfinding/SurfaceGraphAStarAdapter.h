@@ -1,0 +1,22 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "AStarGraphAdapter.h"
+#include "SurfaceGraph.h"
+
+class FSurfaceGraphAStarAdapter final : public IAStarGraphAdapter
+{
+public:
+	~FSurfaceGraphAStarAdapter() = default;
+	explicit FSurfaceGraphAStarAdapter(const USurfaceGraph& InGraph);
+
+	virtual void GetNeighbors(const int32 NodeID, TArray<int32>& OutNeighbors) const override;
+	virtual float GetCost(const int32 FromNodeID, const int32 ToNodeID) const override;
+	virtual float GetHeuristic(const int32 FromNodeID, const int32  GoalNodeID) const override;
+	
+private:
+	const USurfaceGraph& SurfaceGraph;
+	TArray<FVector> NodeCenters;
+	TArray<FVector> PortalMidpointsA;
+	TArray<FVector> PortalMidpointsB;
+};
