@@ -143,3 +143,26 @@ bool FNodeTriangleAStarAdapter::FindNearestTriangle(const FVector& Point, int32&
 	OutTriangleID = BestTriangle;
 	return true;
 }
+
+FVector FNodeTriangleAStarAdapter::GetSharedEdgeMidpoint(const int32 FromTriangleID, const int32 ToTriangleID) const
+{
+	if (!TriangleCenters.IsValidIndex(FromTriangleID))
+	{
+		checkf(false, TEXT("Triangle %d is not a valid index in node %d (TriangleCount=%d)"), FromTriangleID, NodeIndex, TriangleCenters.Num());
+		return FVector::ZeroVector;
+	}
+	
+	for (int32 i = 0 ; i < 3; i++)
+	{
+		const FTriangleEdgeLink& Link = TriangleLinks[3 * FromTriangleID + i];
+		if (Link.NeighborOrdinal == INDEX_NONE) continue; 
+		if (Link.NeighborOrdinal == ToTriangleID)
+		{
+			return Link.EdgeMidpoint;
+		}
+	}
+	
+	checkf(false, TEXT("No shared edge between triangles %d and %d in node %d"), FromTriangleID, ToTriangleID, NodeIndex);
+
+	return FVector::ZeroVector;
+}
