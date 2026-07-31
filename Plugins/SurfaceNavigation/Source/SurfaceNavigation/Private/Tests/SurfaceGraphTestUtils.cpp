@@ -1,5 +1,7 @@
 #include "SurfaceGraphTestUtils.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+
 FTwoNodeDiagonalSquareFixture SurfaceGraphTestUtils::BuildTwoNodeDiagonalSquareGraph()
 {
 	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
@@ -164,3 +166,5 @@ int32 SurfaceGraphTestUtils::AddEmptyNode(USurfaceGraph& Graph)
 	Node.Normal = FVector(0,0,1);
 	return Graph.AddNode(Node);
 }
+
+#endif // WITH_DEV_AUTOMATION_TESTS

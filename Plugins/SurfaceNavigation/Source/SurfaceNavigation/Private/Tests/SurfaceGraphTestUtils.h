@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "SurfaceGraph.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+
 struct FTwoNodeDiagonalSquareFixture 
 {
 	USurfaceGraph* Graph;
@@ -52,3 +54,5 @@ namespace SurfaceGraphTestUtils
 	int32 AddPortalEdge(USurfaceGraph& Graph, int32 NodeAIndex, int32 SlotA, int32 NodeBIndex, int32 SlotB, bool bIsGapBridge, bool bRequiresReorientation);
 	int32 AddEmptyNode(USurfaceGraph& Graph);
 };
+
+#endif // WITH_DEV_AUTOMATION_TESTS
