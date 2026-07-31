@@ -120,6 +120,73 @@ FDuplicateEdgeFixture SurfaceGraphTestUtils::BuildDuplicateEdgeGraph()
 	return Fixture;
 }
 
+FThreeNodeChainFixture SurfaceGraphTestUtils::BuildThreeNodeChainGraph()
+{
+	USurfaceGraph* SurfaceGraph = NewObject<USurfaceGraph>();
+	FThreeNodeChainFixture Fixture;
+	
+	const int32 IdxA  = SurfaceGraph->AddVertex(FVector(0, 0, 0));
+	const int32 IdxAB = SurfaceGraph->AddVertex(FVector(16, 0, 0));
+	const int32 IdxB  = SurfaceGraph->AddVertex(FVector(24, 0, 0));
+	const int32 IdxBC = SurfaceGraph->AddVertex(FVector(12, 9, 0));
+	const int32 IdxC  = SurfaceGraph->AddVertex(FVector(0, 18, 0));
+	const int32 IdxCA = SurfaceGraph->AddVertex(FVector(0, 9, 0));
+
+	const int32 IdxQ2 = SurfaceGraph->AddVertex(FVector(16, -20, 0));
+	const int32 IdxQ3 = SurfaceGraph->AddVertex(FVector(0, -20, 0));
+
+	const int32 IdxW0 = SurfaceGraph->AddVertex(FVector(40, 0, 0));
+	const int32 IdxW1 = SurfaceGraph->AddVertex(FVector(40, 20, 0));
+	const int32 IdxW2 = SurfaceGraph->AddVertex(FVector(40, 24, 12));
+	const int32 IdxW3 = SurfaceGraph->AddVertex(FVector(40, 10, 20));
+	const int32 IdxW4 = SurfaceGraph->AddVertex(FVector(40, -4, 12));
+	const int32 IdxWC = SurfaceGraph->AddVertex(FVector(40, 10, 10));
+
+	FSurfaceGraphNode Node1;
+	Node1.OuterBoundaryIndices = {IdxA, IdxAB, IdxB, IdxBC, IdxC, IdxCA};
+	Node1.TriangleVertexIndices = {
+		IdxA,  IdxAB, IdxCA,
+		IdxAB, IdxB,  IdxBC,
+		IdxCA, IdxBC, IdxC,
+		IdxAB, IdxBC, IdxCA
+	};
+	Node1.Normal = FVector(0,0,1);
+	const int32 Node1Index = SurfaceGraph->AddNode(Node1);
+
+	FSurfaceGraphNode Node2;
+	Node2.OuterBoundaryIndices = {IdxA, IdxAB, IdxQ2, IdxQ3};
+	Node2.TriangleVertexIndices = {
+		IdxA, IdxQ2, IdxQ3,
+		IdxA, IdxAB, IdxQ2
+	};
+	Node2.Normal = FVector(0,0,1);
+	const int32 Node2Index = SurfaceGraph->AddNode(Node2);
+
+	FSurfaceGraphNode Node3;
+	Node3.OuterBoundaryIndices = {IdxW0, IdxW1, IdxW2, IdxW3, IdxW4};
+	Node3.TriangleVertexIndices = {
+		IdxW0, IdxW1, IdxWC,
+		IdxW1, IdxW2, IdxWC,
+		IdxW2, IdxW3, IdxWC,
+		IdxW4, IdxW0, IdxWC,
+		IdxW3, IdxW4, IdxWC
+	};
+	Node3.Normal = FVector(1,0,0);
+	const int32 Node3Index = SurfaceGraph->AddNode(Node3);
+
+	const int32 PlainEdgeIndex = AddPortalEdge(*SurfaceGraph, Node1Index, 0, Node2Index, 0, false, false);
+	const int32 TransitionEdgeIndex = AddPortalEdge(*SurfaceGraph, Node2Index, 2, Node3Index, 4, true, true);
+
+	Fixture.Graph = SurfaceGraph;
+	Fixture.Node1Index = Node1Index;
+	Fixture.Node2Index = Node2Index;
+	Fixture.Node3Index = Node3Index;
+	Fixture.PlainEdgeIndex = PlainEdgeIndex;
+	Fixture.TransitionEdgeIndex = TransitionEdgeIndex;
+
+	return Fixture;
+}
+
 int32 SurfaceGraphTestUtils::AddIsolatedNode(USurfaceGraph& Graph)
 {
 	const int32 IdxI1 = Graph.AddVertex(FVector(100, 100, 0));

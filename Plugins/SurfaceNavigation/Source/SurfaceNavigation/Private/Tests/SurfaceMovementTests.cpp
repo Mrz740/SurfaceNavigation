@@ -1,6 +1,6 @@
-#include "SurfaceMovementTestWorld.h"
 #include "Misc/AutomationTest.h"
 #include "Movement/SurfaceMovementComponent.h"
+#include "Utils/SurfaceMovementTestWorld.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

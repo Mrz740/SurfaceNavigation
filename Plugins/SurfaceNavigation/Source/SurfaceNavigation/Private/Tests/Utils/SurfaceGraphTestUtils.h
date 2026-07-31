@@ -42,12 +42,23 @@ struct FDuplicateEdgeFixture
 	int32 SecondEdgeIndex;
 };
 
+struct FThreeNodeChainFixture
+{
+	USurfaceGraph* Graph;
+	int32 Node1Index;
+	int32 Node2Index;
+	int32 Node3Index;
+	int32 PlainEdgeIndex;
+	int32 TransitionEdgeIndex;
+};
+
 namespace SurfaceGraphTestUtils
 {
 	FTwoNodeDiagonalSquareFixture BuildTwoNodeDiagonalSquareGraph();
 	FDecoyCycleGraphFixture BuildDecoyCycleGraph();
 	FMultiTriangleNodeFixture BuildMultiTriangleNodeGraph();
 	FDuplicateEdgeFixture BuildDuplicateEdgeGraph();
+	FThreeNodeChainFixture BuildThreeNodeChainGraph();
 	
 	int32 AddIsolatedNode(USurfaceGraph& Graph);
 	int32 AddTriangleNode(USurfaceGraph& Graph, int32 V0, int32 V1, int32 V2, const FVector& Normal);

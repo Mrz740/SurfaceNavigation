@@ -1,6 +1,6 @@
 #include "Misc/AutomationTest.h"
 #include "PathFinding/AStarPathFinder.h"
-#include "SurfaceGraphTestUtils.h"
+#include "Utils/SurfaceGraphTestUtils.h"
 #include "Pathfinding/SurfaceGraphAStarAdapter.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
