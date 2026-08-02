@@ -116,7 +116,6 @@ public:
 	
 	ELoopContainment TestPointAgainstLoop(TArrayView<const int32> LoopIndices, const FVector& Point, const FVector& Tangent1, const FVector& Tangent2) const;
 
-	// Single line getters, setters and adders without logic
 	int32 GetNodeCount() const { return Nodes.Num(); }
 	int32 GetEdgeCount() const { return Edges.Num(); }
 	int32 GetSharedVertexCount() const { return SharedVertices.Num(); }
