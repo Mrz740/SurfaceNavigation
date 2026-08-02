@@ -28,7 +28,9 @@ Saved/
 Thumbs.db
 desktop.ini
 
-# Claude Files
+# AI Files
+AGENTS.md
+.Codex/
 .claude/
 CLAUDE.md
 .mcp.json
