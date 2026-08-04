@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Core/SurfacePhaseParticipant.h"
+#include "Pathfinding/SurfacePath.h"
 #include "SurfaceMovementComponent.generated.h"
 
 USTRUCT()
@@ -33,6 +34,71 @@ struct FSurfaceState
 	FVector ImpactPoint = FVector::ZeroVector;
 };
 
+struct FPendingSurfaceTransitionRequest
+{
+	FVector DestinationPosition = FVector::ZeroVector;
+	FSurfaceTransitionInfo TransitionInfo;
+};
+
+enum class ESurfaceTransitionCurveKind : uint8
+{
+	Linear,
+	QuadraticBezier,
+};
+
+struct FActiveSurfaceTransition
+{
+	FTransform DepartureTransform = FTransform::Identity;
+	FVector DestinationPosition = FVector::ZeroVector;
+	FVector DepartureNormal = FVector::UpVector;
+	FVector ArrivalNormal = FVector::UpVector;
+	ESurfaceTransitionCurveKind CurveKind = ESurfaceTransitionCurveKind::Linear;
+	FVector ControlPoint = FVector::ZeroVector;
+	float EffectiveSpeed = 0.0f;
+	TStaticArray<float, 17> CumulativeDistanceTable;
+	float TotalDistance = 0.0f;
+	float DistanceTravelled = 0.0f;
+	float AcceptedProgress = 0.0f;
+	bool bAwaitingArrivalRepin = false;
+};
+
+struct FSurfaceTransitionOutput
+{
+	FVector TargetPosition = FVector::ZeroVector;
+	FQuat TargetRotation = FQuat::Identity;
+	float ProposedDistance = 0.0f;
+	float ProposedProgress = 0.0f;
+	bool bReachedEndpoint = false;
+	bool bHasTransitionTransform = false;
+};
+
+UENUM()
+enum class ESurfaceMovementMode : uint8
+{
+	Crawling,
+	Falling,
+	Transitioning
+};
+
+UENUM()
+enum class ESurfaceTransitionStatus : uint8
+{
+	None,
+	Pending,
+	Active,
+	Completed,
+	Rejected,
+	FailedArrivalRepin,
+	Blocked
+};
+
+enum class EArrivalRepinResult : uint8
+{
+	NotAttempted,
+	Succeeded,
+	Failed
+};
+
 UCLASS(ClassGroup=(Movement), meta=(BlueprintSpawnableComponent))
 class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, public ISurfacePhaseParticipant
 {
@@ -55,16 +121,30 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 
 	UPROPERTY(EditAnywhere)
 	bool bSweepMovement = true;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.0"))
 	float DefaultAcceptanceRadius = 25.f;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.0"))
 	float AccelerationRate = 200.f;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.0"))
 	float MaxSpeed = 400.f;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.0"))
 	float ProbeDistance = 100.0f;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.0"))
 	float RotationSlerpSpeed = 5.f;
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.01"))
+	float TransitionArcHeight = 50.f;
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.01"))
+	float TransitionSpeedMultiplier = 1.f;
+	UPROPERTY(EditAnywhere, meta=(ClampMin="0.01"))
+	float MinimumTransitionSpeed = 100.f;
+
+	ESurfaceMovementMode MovementMode = ESurfaceMovementMode::Falling;
+	ESurfaceTransitionStatus TransitionStatus = ESurfaceTransitionStatus::None;
+	FSurfaceTransitionOutput PendingTransitionOutput;
+	EArrivalRepinResult ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
+
+	TOptional<FActiveSurfaceTransition> ActiveTransition;
+	TOptional<FPendingSurfaceTransitionRequest> PendingTransitionRequest;
 
 public:
 	USurfaceMovementComponent();
@@ -73,10 +153,15 @@ public:
 	virtual void ExecuteSimulatePhase() override;
 	virtual void ExecuteCommitPhase() override;
 
-	const FSurfaceState& GetCommittedState() const { return CommittedState; };
-	const FSurfaceProbeResult& GetPendingProbeResult() const { return PendingProbeResult; };
-	const float& GetDefaultAcceptanceRadius() const { return DefaultAcceptanceRadius; };
+	bool RequestTransition(const FVector& DestinationPosition, const FSurfaceTransitionInfo& TransitionInfo);
 
 	UFUNCTION(BlueprintCallable)
 	void SetMovementTarget(const FVector WorldTargetPosition);
+
+	const FSurfaceState& GetCommittedState() const { return CommittedState; }
+	const FSurfaceProbeResult& GetPendingProbeResult() const { return PendingProbeResult; }
+	const float& GetDefaultAcceptanceRadius() const { return DefaultAcceptanceRadius; }
+
+	ESurfaceMovementMode GetMovementMode() const { return MovementMode; }
+	ESurfaceTransitionStatus GetTransitionStatus() const { return TransitionStatus; }
 };
