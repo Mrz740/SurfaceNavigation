@@ -177,6 +177,7 @@ bool FSurfaceMovementRecoveryTest::RunTest(const FString& Parameters)
 	const FVector TargetA = FVector(200, 0, 50);
 	CompA->SetMovementTarget(TargetA);
 
+	bool bResult1 = false;
 	for (int32 i = 0; i < TickCap; ++i)
 	{
 		TestWorld.TickWorld(FixedDeltaTime);
@@ -184,12 +185,18 @@ bool FSurfaceMovementRecoveryTest::RunTest(const FString& Parameters)
 		CompA->ExecuteSimulatePhase();
 		CompA->ExecuteCommitPhase();
 
+		if (i == 0)
+		{
+			bResult1 = TestEqual(TEXT(""), CompA->GetMovementMode(), ESurfaceMovementMode::Crawling);
+		}
 		if (!CompA->GetCommittedState().bIsOnSurface) break;
 	}
 
-	const bool bResult1 = TestFalse(
+	const bool bResult2 = TestFalse(
 		TEXT("Falling detection: bIsOnSurface should flip false after the actor walks off the bounded floor's edge"),
 		CompA->GetCommittedState().bIsOnSurface);
+	const bool bResult3 = TestEqual(TEXT(""), CompA->GetMovementMode(), ESurfaceMovementMode::Falling);
+
 	const FVector LocationAtFall = MoverA->GetActorLocation();
 
 	for (int32 i = 0; i < 3; ++i)
@@ -200,7 +207,7 @@ bool FSurfaceMovementRecoveryTest::RunTest(const FString& Parameters)
 		CompA->ExecuteCommitPhase();
 	}
 
-	const bool bResult2 = TestEqual(
+	const bool bResult4 = TestEqual(
 		TEXT("Falling stability: actor location should not change across further ticks while still off-surface"),
 		MoverA->GetActorLocation(), LocationAtFall);
 
@@ -215,11 +222,12 @@ bool FSurfaceMovementRecoveryTest::RunTest(const FString& Parameters)
 		CompA->ExecuteCommitPhase();
 	}
 
-	const bool bResult3 = TestTrue(
+	const bool bResult5 = TestTrue(
 		TEXT("Recovery repin: bIsOnSurface should heal back to true once repositioned over supporting geometry"),
 		CompA->GetCommittedState().bIsOnSurface);
+	const bool bResult6 = TestEqual(TEXT(""), CompA->GetMovementMode(), ESurfaceMovementMode::Crawling);
 
-	return bResult1 && bResult2 && bResult3;
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceMovementDoubleBufferTest, "SurfaceNavigation.Movement.DoubleBufferCorrectness",

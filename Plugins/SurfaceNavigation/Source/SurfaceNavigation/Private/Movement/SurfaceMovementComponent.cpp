@@ -42,9 +42,10 @@ void USurfaceMovementComponent::ExecuteReadPhase()
 
 void USurfaceMovementComponent::ExecuteSimulatePhase()
 {
-	if (!CommittedState.bIsOnSurface || !bHasPendingTarget)
+	if (MovementMode != ESurfaceMovementMode::Crawling || !bHasPendingTarget)
 	{
 		PendingMoveDelta = FVector::ZeroVector;
+		PendingSpeed = 0.f;
 		return;
 	}
 
@@ -69,6 +70,8 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 	CommittedState.bIsOnSurface = PendingProbeResult.bIsOnSurface;
 	CommittedState.SurfaceNormal = PendingProbeResult.SurfaceNormal;
 	CommittedState.ImpactPoint = PendingProbeResult.ImpactPoint;
+
+	MovementMode = CommittedState.bIsOnSurface ? ESurfaceMovementMode::Crawling : ESurfaceMovementMode::Falling;
 
 	if (CommittedState.bIsOnSurface)
 	{
