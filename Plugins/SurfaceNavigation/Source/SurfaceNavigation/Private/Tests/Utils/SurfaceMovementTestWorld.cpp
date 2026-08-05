@@ -1,5 +1,8 @@
 #include "SurfaceMovementTestWorld.h"
 #include "Components/BoxComponent.h"
+#include "Movement/SurfaceMovementComponent.h"
+
+#if WITH_DEV_AUTOMATION_TESTS
 
 FSurfaceMovementTestWorld::FSurfaceMovementTestWorld()
 {
@@ -26,6 +29,7 @@ AActor* FSurfaceMovementTestWorld::SpawnFlatPrimitive(const FVector& Location, c
 	Box->SetBoxExtent(Extent);
 	Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Box->SetCollisionResponseToAllChannels(ECR_Block);
+	Box->SetCollisionObjectType(ECC_WorldStatic);
 	Box->RegisterComponent();
 	
 	Actor->SetRootComponent(Box);
@@ -38,10 +42,14 @@ AActor* FSurfaceMovementTestWorld::SpawnMovementActor(const FVector& Location) c
 {
 	AActor* Actor = World->SpawnActor<AActor>();
 	
-	USceneComponent* SceneComponent = NewObject<USceneComponent>(Actor);
-	SceneComponent->RegisterComponent();
+	UBoxComponent* Box = NewObject<UBoxComponent>(Actor);
+	Box->SetBoxExtent(FVector(5.f, 5.f, 5.f));
+	Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Box->SetCollisionResponseToAllChannels(ECR_Ignore);
+	Box->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	Box->RegisterComponent();
 	
-	Actor->SetRootComponent(SceneComponent);
+	Actor->SetRootComponent(Box);
 	Actor->SetActorLocation(Location);
 	Actor->SetActorRotation(FQuat::Identity.Rotator());
 	
@@ -55,3 +63,5 @@ void FSurfaceMovementTestWorld::TickWorld(float DeltaTime) const
 {
 	World->Tick(LEVELTICK_All, DeltaTime);
 }
+
+#endif

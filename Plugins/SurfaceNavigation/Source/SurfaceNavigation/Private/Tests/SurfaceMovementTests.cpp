@@ -267,4 +267,23 @@ bool FSurfaceMovementDoubleBufferTest::RunTest(const FString& Parameters)
 	return bResult1 && bResult2 && bResult3 && bResult4;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceMovementSweepCollision, "SurfaceNavigation.Movement.SweepCollision",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceMovementSweepCollision::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+
+	TestWorld.SpawnFlatPrimitive(FVector(100,0,50), FVector::UpVector, FVector(20, 20, 20));
+
+	AActor* Mover = TestWorld.SpawnMovementActor(FVector(0, 0, 50));
+
+	FHitResult Hit;
+	Mover->AddActorWorldOffset(FVector(200,0,0), true, &Hit);
+
+	const bool bResult1 = TestTrue(TEXT("Sweep toward a blocking box should report a blocking hit"), Hit.bBlockingHit);
+
+	return bResult1;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
