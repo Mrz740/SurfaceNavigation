@@ -85,6 +85,19 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 	}
 }
 
+bool USurfaceMovementComponent::RequestTransition(const FVector& DestinationPosition,
+	const FSurfaceTransitionInfo& TransitionInfo)
+{
+	if (PendingTransitionRequest.IsSet() || ActiveTransition.IsSet()) return false;
+
+	PendingTransitionRequest = FPendingSurfaceTransitionRequest{
+		.DestinationPosition = DestinationPosition,
+		.TransitionInfo = TransitionInfo
+	};
+	TransitionStatus = ESurfaceTransitionStatus::Pending;
+	return true;
+}
+
 void USurfaceMovementComponent::SetMovementTarget(const FVector WorldTargetPosition)
 {
 	bHasPendingTarget = true;
