@@ -2,6 +2,146 @@
 
 #include "Movement/SurfaceMovementComponent.h"
 
+bool USurfaceMovementComponent::HandleTransitionState()
+{
+	if (PendingTransitionRequest.IsSet())
+	{
+		if (MovementMode != ESurfaceMovementMode::Crawling)
+		{
+			return RejectPendingTransition();
+		}
+
+		if (PendingTransitionRequest->DestinationPosition.ContainsNaN() ||
+			PendingTransitionRequest->TransitionInfo.DepartureNormal.ContainsNaN() ||
+			PendingTransitionRequest->TransitionInfo.ArrivalNormal.ContainsNaN())
+		{
+			return RejectPendingTransition();
+		}
+
+		if (!(PendingTransitionRequest->TransitionInfo.bRequiresReorientation ||
+			PendingTransitionRequest->TransitionInfo.bIsGapBridge))
+		{
+			return RejectPendingTransition();
+		}
+
+		const FTransform DepartureTransform = GetOwner()->GetTransform();
+		const FVector DestinationPosition = PendingTransitionRequest->DestinationPosition;
+		const FVector DepartureNormal = PendingTransitionRequest->TransitionInfo.DepartureNormal.GetSafeNormal();
+		const FVector ArrivalNormal = PendingTransitionRequest->TransitionInfo.ArrivalNormal.GetSafeNormal();
+
+		if (DepartureNormal.IsNearlyZero(KINDA_SMALL_NUMBER) || ArrivalNormal.IsNearlyZero(KINDA_SMALL_NUMBER))
+		{
+			return RejectPendingTransition();
+		}
+
+		ESurfaceTransitionCurveKind CurveKind;
+		FVector ControlPoint = FVector::ZeroVector;
+
+		if (PendingTransitionRequest->TransitionInfo.bRequiresReorientation)
+		{
+			CurveKind = ESurfaceTransitionCurveKind::QuadraticBezier;
+			const FVector AveragedNormal = (DepartureNormal + ArrivalNormal).GetSafeNormal();
+			if (AveragedNormal.IsNearlyZero(KINDA_SMALL_NUMBER))
+			{
+				return RejectPendingTransition();
+			}
+
+			ControlPoint = ((DepartureTransform.GetLocation() + DestinationPosition) / 2) +
+				2 * TransitionArcHeight * AveragedNormal;
+		}
+		else
+		{
+			CurveKind = ESurfaceTransitionCurveKind::Linear;
+		}
+
+		const float EffectiveSpeed = FMath::Max(CommittedSpeed * TransitionSpeedMultiplier, MinimumTransitionSpeed);
+
+		if (EffectiveSpeed <= 0)
+		{
+			return RejectPendingTransition();
+		}
+
+		TStaticArray<float, 17> Table = BuildCumulativeDistanceTable(CurveKind, DepartureTransform.GetLocation(),
+			ControlPoint, DestinationPosition);
+		const float TotalDistance = Table[16];
+
+		if (!FMath::IsFinite(TotalDistance) || FMath::IsNearlyZero(TotalDistance))
+		{
+			return RejectPendingTransition();
+		}
+
+		ActiveTransition = FActiveSurfaceTransition{
+			.DepartureTransform = DepartureTransform,
+			.DestinationPosition = DestinationPosition,
+			.DepartureNormal = DepartureNormal,
+			.ArrivalNormal = ArrivalNormal,
+			.CurveKind = CurveKind,
+			.ControlPoint = ControlPoint,
+			.EffectiveSpeed = EffectiveSpeed,
+			.CumulativeDistanceTable = Table,
+			.TotalDistance = TotalDistance
+		};
+
+		PendingTransitionRequest.Reset();
+		bHasPendingTarget = false;
+		PendingTransitionOutput = FSurfaceTransitionOutput{};
+		MovementMode = ESurfaceMovementMode::Transitioning;
+		TransitionStatus = ESurfaceTransitionStatus::Active;
+
+		return false;
+	}
+
+	if (MovementMode == ESurfaceMovementMode::Transitioning)
+	{
+		PendingProbeResult.bIsOnSurface = CommittedState.bIsOnSurface;
+		PendingProbeResult.SurfaceNormal = CommittedState.SurfaceNormal;
+		PendingProbeResult.ImpactPoint = CommittedState.ImpactPoint;
+		return false;
+	}
+
+	return true;
+}
+
+bool USurfaceMovementComponent::RejectPendingTransition()
+{
+	PendingTransitionRequest.Reset();
+	bHasPendingTarget = false;
+	TransitionStatus = ESurfaceTransitionStatus::Rejected;
+	return true;
+}
+
+FVector USurfaceMovementComponent::EvaluateTransitionCurve(ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
+	const FVector& ControlPoint, const FVector& Destination, float T)
+{
+	switch (CurveKind)
+	{
+	case ESurfaceTransitionCurveKind::Linear:
+		return FMath::Lerp(Start, Destination, T);
+	case ESurfaceTransitionCurveKind::QuadraticBezier:
+		return FMath::Square(1 - T) * Start + 2 * (1 - T) * T * ControlPoint + FMath::Square(T) * Destination;
+	default:
+		return FVector::ZeroVector;
+	}
+}
+
+TStaticArray<float, 17> USurfaceMovementComponent::BuildCumulativeDistanceTable(ESurfaceTransitionCurveKind CurveKind,
+	const FVector& Start, const FVector& ControlPoint, const FVector& Destination)
+{
+	TStaticArray<float, 17> Table;
+	Table[0] = 0.f;
+
+	FVector PreviousPoint = EvaluateTransitionCurve(CurveKind, Start, ControlPoint, Destination, 0.f);
+
+	for (int8 i = 1; i <= 16; i++)
+	{
+		const float T = i / 16.f;
+		FVector Point = EvaluateTransitionCurve(CurveKind, Start, ControlPoint, Destination, T);
+		Table[i] = Table[i - 1] + FVector::Distance(PreviousPoint, Point);
+		PreviousPoint = Point;
+	}
+	return Table;
+}
+
 USurfaceMovementComponent::USurfaceMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -9,6 +149,11 @@ USurfaceMovementComponent::USurfaceMovementComponent()
 
 void USurfaceMovementComponent::ExecuteReadPhase()
 {
+	if (!HandleTransitionState())
+	{
+		return;
+	}
+
 	const AActor* Owner = GetOwner();
 	const FVector Origin = Owner->GetActorLocation();
 	const FVector Direction = -CommittedState.SurfaceNormal;
@@ -17,16 +162,14 @@ void USurfaceMovementComponent::ExecuteReadPhase()
 	Params.AddIgnoredActor(Owner);
 
 	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,
-	                                                       Origin, Origin + Direction * ProbeDistance, ECC_WorldStatic,
-	                                                       Params);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,Origin,
+	 Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
 
 	if (!bHit && CommittedState.bIsOnSurface)
 	{
 		FHitResult RecoveryHit;
 		const bool bRecoveryHit = GetWorld()->LineTraceSingleByChannel(RecoveryHit, Origin,
-		                                                               Origin - Owner->GetActorUpVector() *
-		                                                               ProbeDistance, ECC_WorldStatic, Params);
+			Origin - Owner->GetActorUpVector() * ProbeDistance, ECC_WorldStatic, Params);
 
 		PendingProbeResult.bIsOnSurface = bRecoveryHit;
 		PendingProbeResult.SurfaceNormal = bRecoveryHit ? RecoveryHit.ImpactNormal : CommittedState.SurfaceNormal;
@@ -71,8 +214,11 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 	CommittedState.SurfaceNormal = PendingProbeResult.SurfaceNormal;
 	CommittedState.ImpactPoint = PendingProbeResult.ImpactPoint;
 
-	MovementMode = CommittedState.bIsOnSurface ? ESurfaceMovementMode::Crawling : ESurfaceMovementMode::Falling;
-
+	if (MovementMode != ESurfaceMovementMode::Transitioning)
+	{
+		MovementMode = CommittedState.bIsOnSurface ? ESurfaceMovementMode::Crawling : ESurfaceMovementMode::Falling;
+	}
+	// TODO (Step 10): gate this block on MovementMode != Transitioning once the transition-Commit dispatch exists; it currently runs a harmless no-op (zeroed PendingMoveDelta) every transitioning frame.
 	if (CommittedState.bIsOnSurface)
 	{
 		const FQuat TargetRotation = FRotationMatrix::MakeFromZX(CommittedState.SurfaceNormal,
@@ -88,7 +234,10 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 bool USurfaceMovementComponent::RequestTransition(const FVector& DestinationPosition,
 	const FSurfaceTransitionInfo& TransitionInfo)
 {
-	if (PendingTransitionRequest.IsSet() || ActiveTransition.IsSet()) return false;
+	if (PendingTransitionRequest.IsSet() || ActiveTransition.IsSet())
+	{
+		return false;
+	}
 
 	PendingTransitionRequest = FPendingSurfaceTransitionRequest{
 		.DestinationPosition = DestinationPosition,

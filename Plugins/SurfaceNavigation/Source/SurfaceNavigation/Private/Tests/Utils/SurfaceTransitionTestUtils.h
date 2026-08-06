@@ -17,6 +17,14 @@ namespace SurfaceTransitionTestUtils
 		AActor* ArrivalPrimitive = nullptr;
 	};
 
+	struct FSurfaceTransitionTestAccess
+	{
+		static const FActiveSurfaceTransition* GetActiveTransition(const USurfaceMovementComponent* Component)
+		{
+			return Component->ActiveTransition.IsSet() ? &Component->ActiveTransition.GetValue() : nullptr;
+		}
+	};
+
 	FTransitionFixture BuildQuadraticReorientationFixture(const FSurfaceMovementTestWorld& World,
 		bool bIncludeArrivalPrimitive = true);
 

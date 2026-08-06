@@ -3,12 +3,13 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+using namespace SurfaceTransitionTestUtils;
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionRequestAcceptance, "SurfaceNavigation.Movement.Transition.RequestAcceptance",
                                  EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FSurfaceTransitionRequestAcceptance::RunTest(const FString& Parameters)
 {
-	using namespace SurfaceTransitionTestUtils;
 	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
 
 	FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
@@ -16,12 +17,53 @@ bool FSurfaceTransitionRequestAcceptance::RunTest(const FString& Parameters)
 
 	const FVector ActorLocation = Fixture.MovementActor->GetActorLocation();
 
-	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"), PrimeCrawlingAttachment(TestWorld,Fixture.MovementComponent));
-	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),Fixture.MovementComponent->RequestTransition(Arrival.Position,Arrival.TransitionInfo.GetValue()));
-	const bool bResult3 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
-	const bool bResult4 = TestEqual(TEXT("RequestTransition should not move the actor; Read has not run yet"), Fixture.MovementActor->GetActorLocation(), ActorLocation);
+	FVector RequestedDestination = Arrival.Position;
+	FSurfaceTransitionInfo RequestedInfo = Arrival.TransitionInfo.GetValue();
 
-	return bResult1 && bResult2 && bResult3 && bResult4;
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(TestWorld,Fixture.MovementComponent));
+
+	const FRotator ActorRotation = Fixture.MovementActor->GetActorRotation();
+
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Fixture.MovementComponent->RequestTransition(RequestedDestination,RequestedInfo));
+	const bool bResult3 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+	const bool bResult4 = TestEqual(TEXT("RequestTransition should not move the actor; Read has not run yet"),
+		Fixture.MovementActor->GetActorLocation(), ActorLocation);
+
+	RequestedDestination = FVector(9999.f,9999.f,9999.f);
+	RequestedInfo.ArrivalNormal = FVector(0.f,1.f,0.f);
+
+	const bool bResult5 = TestEqual(TEXT("RequestTransition should not rotate the actor; Read has not run yet"),
+				Fixture.MovementActor->GetActorRotation(), ActorRotation);
+
+	Fixture.MovementComponent->ExecuteReadPhase();
+
+	const bool bResult6 = TestEqual(TEXT("Read must not rotate the actor; it only freezes the maneuver"),
+		Fixture.MovementActor->GetActorRotation(), ActorRotation);
+
+	const bool bResult7 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult8 = TestEqual(TEXT("Read must not move the actor; it only freezes the maneuver"),
+		ActorLocation, Fixture.MovementActor->GetActorLocation());
+
+	const FActiveSurfaceTransition* Active = FSurfaceTransitionTestAccess::GetActiveTransition(Fixture.MovementComponent);
+
+	const bool bResult9 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"), Active);
+
+	if (!bResult9)
+	{
+		return false;
+	}
+
+	const bool bResult10 = TestEqual(TEXT("The frozen destination must match the value published before the caller mutated it"),
+		Active->DestinationPosition, Arrival.Position);
+	const bool bResult11 = TestEqual(TEXT("The frozen arrival normal must match the value published before the caller mutated it"),
+		Active->ArrivalNormal, Arrival.TransitionInfo->ArrivalNormal.GetSafeNormal());
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionBusyRequest, "SurfaceNavigation.Movement.Transition.BusyRequest",
@@ -29,7 +71,6 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionBusyRequest, "SurfaceNavigati
 
 bool FSurfaceTransitionBusyRequest::RunTest(const FString& Parameters)
 {
-	using namespace SurfaceTransitionTestUtils;
 	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
 
 	FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
@@ -37,15 +78,154 @@ bool FSurfaceTransitionBusyRequest::RunTest(const FString& Parameters)
 
 	const FVector ActorLocation = Fixture.MovementActor->GetActorLocation();
 
-	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"), PrimeCrawlingAttachment(TestWorld,Fixture.MovementComponent));
-	const bool bResult2 = TestTrue(TEXT("The first RequestTransition call should be accepted since no transition is pending or active"),Fixture.MovementComponent->RequestTransition(Arrival.Position,Arrival.TransitionInfo.GetValue()));
-	const bool bResult3 = TestEqual(TEXT("Accepting the first request should publish Pending as the transition status"),Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
-	const bool bResult4 = TestEqual(TEXT("Accepting the first request should not move the actor; Read has not run yet"), Fixture.MovementActor->GetActorLocation(), ActorLocation);
-	const bool bResult5 = TestFalse(TEXT("A second RequestTransition call should be rejected while a request is already pending"),Fixture.MovementComponent->RequestTransition(FVector(0,0,0),Arrival.TransitionInfo.GetValue()));
-	const bool bResult6 = TestEqual(TEXT("Rejecting the busy request should leave the transition status unchanged at Pending"),Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
-	const bool bResult7 = TestEqual(TEXT("Rejecting the busy request should not move the actor"), Fixture.MovementActor->GetActorLocation(), ActorLocation);
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(TestWorld,Fixture.MovementComponent));
+	const bool bResult2 = TestTrue(TEXT("The first RequestTransition call should be accepted since no transition is pending or active"),
+		Fixture.MovementComponent->RequestTransition(Arrival.Position,Arrival.TransitionInfo.GetValue()));
+	const bool bResult3 = TestEqual(TEXT("Accepting the first request should publish Pending as the transition status"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+	const bool bResult4 = TestEqual(TEXT("Accepting the first request should not move the actor; Read has not run yet"),
+		Fixture.MovementActor->GetActorLocation(), ActorLocation);
+	const bool bResult5 = TestFalse(TEXT("A second RequestTransition call should be rejected while a request is already pending"),
+		Fixture.MovementComponent->RequestTransition(FVector(0,0,0),Arrival.TransitionInfo.GetValue()));
+	const bool bResult6 = TestEqual(TEXT("Rejecting the busy request should leave the transition status unchanged at Pending"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+	const bool bResult7 = TestEqual(TEXT("Rejecting the busy request should not move the actor"),
+		Fixture.MovementActor->GetActorLocation(), ActorLocation);
 
 	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionOpposingNormals, "SurfaceNavigation.Movement.Transition.OpposingNormals",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceTransitionOpposingNormals::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+
+	FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
+
+	FSurfaceTransitionInfo OpposingInfo;
+	OpposingInfo.DepartureNormal = FVector(0,0,1);
+	OpposingInfo.ArrivalNormal = FVector(0,0,-1);
+	OpposingInfo.bRequiresReorientation = true;
+
+	const FVector Destination = Fixture.Path.Waypoints[1].Position;
+	const FVector ActorLocation = Fixture.MovementActor->GetActorLocation();
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(TestWorld, Fixture.MovementComponent));
+
+	const FRotator ActorRotation = Fixture.MovementActor->GetActorRotation();
+
+	Fixture.MovementComponent->SetMovementTarget(FVector(0,0,0));
+
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept opposing-normal metadata; admission never inspects normals"),
+		Fixture.MovementComponent->RequestTransition(Destination, OpposingInfo));
+	const bool bResult3 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+
+	Fixture.MovementComponent->ExecuteReadPhase();
+
+	const bool bResult4 = TestEqual(TEXT("Read should reject a maneuver whose averaged normal is too small to normalize"),
+		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Rejected);
+	const bool bResult5 = TestEqual(TEXT("Rejection should preserve the prior movement mode instead of entering Transitioning"),
+		Fixture.MovementComponent->GetMovementMode(), ESurfaceMovementMode::Crawling);
+	const bool bResult6 = TestEqual(TEXT("Read must not move the actor on a rejected request"),
+		Fixture.MovementActor->GetActorLocation(), ActorLocation);
+	const bool bResult6b = TestEqual(TEXT("Read must not rotate the actor on a rejected request"),
+		Fixture.MovementActor->GetActorRotation(), ActorRotation);
+
+	Fixture.MovementComponent->ExecuteSimulatePhase();
+	Fixture.MovementComponent->ExecuteCommitPhase();
+
+	const bool bResult7 = TestEqual(TEXT("A rejected request must clear the ordinary target so recovery cannot resume it"),
+				Fixture.MovementActor->GetActorLocation(), ActorLocation);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult6b && bResult7;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionCurveConstruction, "SurfaceNavigation.Movement.Transition.CurveConstruction",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceTransitionCurveConstruction::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld QuadTestWorld = FSurfaceMovementTestWorld();
+
+	constexpr float ExpectedArcHeight = 50.f;
+	constexpr float Tolerance = 1.f;
+
+	const FTransitionFixture QuadFixture = BuildQuadraticReorientationFixture(QuadTestWorld, true);
+	FSurfaceWaypoint QuadArrival = QuadFixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(QuadTestWorld, QuadFixture.MovementComponent));
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		QuadFixture.MovementComponent->RequestTransition(QuadArrival.Position, QuadArrival.TransitionInfo.GetValue()));
+
+	QuadFixture.MovementComponent->ExecuteReadPhase();
+
+	const FActiveSurfaceTransition* QuadActive = FSurfaceTransitionTestAccess::GetActiveTransition(QuadFixture.MovementComponent);
+	const bool bResult3 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"), QuadActive);
+
+	if (!bResult3)
+	{
+		return false;
+	}
+
+	const bool bResult4 = TestEqual(TEXT("Reorientation metadata should select the quadratic Bezier curve"),
+		QuadActive->CurveKind, ESurfaceTransitionCurveKind::QuadraticBezier);
+
+	const FVector Start = QuadActive->DepartureTransform.GetLocation();
+	const FVector CurveMidpoint = 0.25f * Start + 0.5f * QuadActive->ControlPoint + 0.25 * QuadActive->DestinationPosition;
+	const FVector ChordMidpoint = (Start + QuadActive->DestinationPosition) / 2.f;
+	const float ClearanceOffset = FVector::Dist(CurveMidpoint, ChordMidpoint);
+
+	const bool bResult5 = TestEqual(TEXT("The curve should reach its configured clearance at t=0.5"),
+		ClearanceOffset, ExpectedArcHeight, Tolerance);
+	const bool bResult6 = TestEqual(TEXT("The cumulative distance table should start at zero"),
+		QuadActive->CumulativeDistanceTable[0],0.f);
+	const bool bResult7 = TestEqual(TEXT("The cumulative distance table's final entry should equal the total curve length"),
+		QuadActive->CumulativeDistanceTable[16], QuadActive->TotalDistance);
+
+	bool bMonotonic = true;
+	for (int8 i = 1; i <= 16; i++)
+	{
+		if (QuadActive->CumulativeDistanceTable[i] < QuadActive->CumulativeDistanceTable[i-1])
+		{
+			bMonotonic = false;
+			break;
+		}
+	}
+	const bool bResult8 = TestTrue(TEXT("The cumulative distance table should never decrease"), bMonotonic);
+
+	const FSurfaceMovementTestWorld GapTestWorld = FSurfaceMovementTestWorld();
+
+	FTransitionFixture GapFixture = BuildStraightGapFixture(GapTestWorld, true);
+	FSurfaceWaypoint GapArrival = GapFixture.Path.Waypoints[1];
+
+	const bool bResult9 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(GapTestWorld, GapFixture.MovementComponent));
+	const bool bResult10 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		GapFixture.MovementComponent->RequestTransition(GapArrival.Position, GapArrival.TransitionInfo.GetValue()));
+
+	GapFixture.MovementComponent->ExecuteReadPhase();
+
+	const FActiveSurfaceTransition* GapActive = FSurfaceTransitionTestAccess::GetActiveTransition(GapFixture.MovementComponent);
+	const bool bResult11 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"), GapActive);
+	if (!bResult11)
+	{
+		return false;
+	}
+
+	const bool bResult12 = TestEqual(TEXT("A same-normal gap bridge should select the linear curve even though bIsGapBridge is true"),
+		GapActive->CurveKind, ESurfaceTransitionCurveKind::Linear);
+	const bool bResult13 = TestEqual(TEXT("A linear transition should never compute a control point or apply arc height"),
+		GapActive->ControlPoint, FVector::ZeroVector);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11 && bResult12 && bResult13;
 }
 
 #endif

@@ -8,6 +8,13 @@
 #include "Pathfinding/SurfacePath.h"
 #include "SurfaceMovementComponent.generated.h"
 
+#if WITH_DEV_AUTOMATION_TESTS
+namespace SurfaceTransitionTestUtils
+{
+	struct FSurfaceTransitionTestAccess;
+}
+#endif
+
 USTRUCT()
 struct FSurfaceProbeResult
 {
@@ -139,13 +146,24 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 	float MinimumTransitionSpeed = 100.f;
 
 	ESurfaceMovementMode MovementMode = ESurfaceMovementMode::Falling;
-	ESurfaceTransitionStatus TransitionStatus = ESurfaceTransitionStatus::None;
-	FSurfaceTransitionOutput PendingTransitionOutput;
 	EArrivalRepinResult ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
 
-	TOptional<FActiveSurfaceTransition> ActiveTransition;
+	ESurfaceTransitionStatus TransitionStatus = ESurfaceTransitionStatus::None;
 	TOptional<FPendingSurfaceTransitionRequest> PendingTransitionRequest;
+	FSurfaceTransitionOutput PendingTransitionOutput;
+	TOptional<FActiveSurfaceTransition> ActiveTransition;
 
+	#if WITH_DEV_AUTOMATION_TESTS
+		friend struct SurfaceTransitionTestUtils::FSurfaceTransitionTestAccess;
+	#endif
+
+	bool HandleTransitionState();
+	bool RejectPendingTransition();
+
+	static FVector EvaluateTransitionCurve(ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
+		const FVector& ControlPoint, const FVector& Destination, float T);
+	static TStaticArray<float,17> BuildCumulativeDistanceTable(ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
+		const FVector& ControlPoint, const FVector& Destination);
 public:
 	USurfaceMovementComponent();
 
