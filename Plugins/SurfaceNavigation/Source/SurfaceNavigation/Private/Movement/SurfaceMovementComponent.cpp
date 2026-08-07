@@ -142,6 +142,35 @@ TStaticArray<float, 17> USurfaceMovementComponent::BuildCumulativeDistanceTable(
 	return Table;
 }
 
+float USurfaceMovementComponent::LookupDistanceTableProgress(const TStaticArray<float, 17>& Table, const float TotalDistance,
+	const float RequestedDistance)
+{
+	const float ClampedRequestedDistance = FMath::Clamp(RequestedDistance, 0.f, TotalDistance);
+
+	if (ClampedRequestedDistance == TotalDistance)
+	{
+		return 1.0f;
+	}
+	if (ClampedRequestedDistance == 0.f)
+	{
+		return 0.f;
+	}
+
+	for (int8 i = 0; i < 16; i++)
+	{
+		if (ClampedRequestedDistance <= Table[i + 1])
+		{
+			if (FMath::IsNearlyZero(Table[i+1] - Table[i]))
+			{
+				return i / 16.f;
+			}
+			const float Alpha = (ClampedRequestedDistance - Table[i]) / (Table[i + 1] - Table[i]);
+			return (i + Alpha) / 16.f;
+		}
+	}
+	return 1.0f;
+}
+
 USurfaceMovementComponent::USurfaceMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -185,6 +214,41 @@ void USurfaceMovementComponent::ExecuteReadPhase()
 
 void USurfaceMovementComponent::ExecuteSimulatePhase()
 {
+	if (MovementMode == ESurfaceMovementMode::Transitioning)
+	{
+		if (!ensureMsgf(ActiveTransition.IsSet(),
+			TEXT("MovementMode is Transitioning but ActiveTransition is unset")))
+		{
+			return;
+		}
+
+		if (ActiveTransition->bAwaitingArrivalRepin)
+		{
+			return;
+		}
+
+		const float NextDistance = FMath::Min(ActiveTransition->DistanceTravelled +
+			ActiveTransition->EffectiveSpeed * GetWorld()->GetDeltaSeconds(),ActiveTransition->TotalDistance);
+		const float NextProgress = LookupDistanceTableProgress(ActiveTransition->CumulativeDistanceTable,
+			ActiveTransition->TotalDistance, NextDistance);
+		const FVector NextPosition = EvaluateTransitionCurve(ActiveTransition->CurveKind,
+			ActiveTransition->DepartureTransform.GetLocation(),ActiveTransition->ControlPoint,
+			ActiveTransition->DestinationPosition, NextProgress);
+		const FVector InterpolatedUp = FMath::Lerp(ActiveTransition->DepartureNormal, ActiveTransition->ArrivalNormal,
+			NextProgress).GetSafeNormal();
+		const FQuat NextRotation = FQuat::FindBetweenNormals(ActiveTransition->DepartureNormal, InterpolatedUp) *
+			ActiveTransition->DepartureTransform.GetRotation();
+
+		PendingTransitionOutput.TargetPosition = NextPosition;
+		PendingTransitionOutput.TargetRotation = NextRotation;
+		PendingTransitionOutput.ProposedDistance = NextDistance;
+		PendingTransitionOutput.ProposedProgress = NextProgress;
+		PendingTransitionOutput.bReachedEndpoint = (NextDistance == ActiveTransition->TotalDistance);
+		PendingTransitionOutput.bHasTransitionTransform = true;
+
+		return;
+	}
+
 	if (MovementMode != ESurfaceMovementMode::Crawling || !bHasPendingTarget)
 	{
 		PendingMoveDelta = FVector::ZeroVector;

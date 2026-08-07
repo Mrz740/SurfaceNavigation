@@ -164,6 +164,8 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 		const FVector& ControlPoint, const FVector& Destination, float T);
 	static TStaticArray<float,17> BuildCumulativeDistanceTable(ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
 		const FVector& ControlPoint, const FVector& Destination);
+	static float LookupDistanceTableProgress(const TStaticArray<float,17>& Table, float TotalDistance, float RequestedDistance);
+
 public:
 	USurfaceMovementComponent();
 
