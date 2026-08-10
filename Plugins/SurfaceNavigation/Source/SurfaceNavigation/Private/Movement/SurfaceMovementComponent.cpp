@@ -274,15 +274,51 @@ void USurfaceMovementComponent::ExecuteSimulatePhase()
 
 void USurfaceMovementComponent::ExecuteCommitPhase()
 {
+	if (MovementMode == ESurfaceMovementMode::Transitioning)
+	{
+		if (!ensureMsgf(ActiveTransition.IsSet(),
+			TEXT("MovementMode is Transitioning but ActiveTransition is unset")))
+		{
+			return;
+		}
+
+		if (PendingTransitionOutput.bHasTransitionTransform)
+		{
+			FHitResult SweepHit;
+			GetOwner()->SetActorLocationAndRotation(PendingTransitionOutput.TargetPosition,
+				PendingTransitionOutput.TargetRotation,true, &SweepHit);
+
+			if (SweepHit.bBlockingHit)
+			{
+				ActiveTransition.Reset();
+				bHasPendingTarget = false;
+				PendingMoveDelta = FVector::ZeroVector;
+
+				PendingSpeed = 0.f;
+				CommittedSpeed = 0.f;
+				MovementMode = ESurfaceMovementMode::Falling;
+				TransitionStatus = ESurfaceTransitionStatus::Blocked;
+			}
+			else
+			{
+				ActiveTransition->DistanceTravelled = PendingTransitionOutput.ProposedDistance;
+				ActiveTransition->AcceptedProgress = PendingTransitionOutput.ProposedProgress;
+				if (PendingTransitionOutput.bReachedEndpoint)
+				{
+					ActiveTransition->bAwaitingArrivalRepin = true;
+				}
+			}
+			PendingTransitionOutput = FSurfaceTransitionOutput{};
+		}
+		return;
+	}
+
 	CommittedState.bIsOnSurface = PendingProbeResult.bIsOnSurface;
 	CommittedState.SurfaceNormal = PendingProbeResult.SurfaceNormal;
 	CommittedState.ImpactPoint = PendingProbeResult.ImpactPoint;
 
-	if (MovementMode != ESurfaceMovementMode::Transitioning)
-	{
-		MovementMode = CommittedState.bIsOnSurface ? ESurfaceMovementMode::Crawling : ESurfaceMovementMode::Falling;
-	}
-	// TODO (Step 10): gate this block on MovementMode != Transitioning once the transition-Commit dispatch exists; it currently runs a harmless no-op (zeroed PendingMoveDelta) every transitioning frame.
+	MovementMode = CommittedState.bIsOnSurface ? ESurfaceMovementMode::Crawling : ESurfaceMovementMode::Falling;
+
 	if (CommittedState.bIsOnSurface)
 	{
 		const FQuat TargetRotation = FRotationMatrix::MakeFromZX(CommittedState.SurfaceNormal,

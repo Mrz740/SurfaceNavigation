@@ -120,4 +120,22 @@ bool SurfaceTransitionTestUtils::TickUntilTransitionStatus(const FSurfaceMovemen
 	return false;
 }
 
+bool SurfaceTransitionTestUtils::TickUntilAwaitingArrivalRepin(const FSurfaceMovementTestWorld& World,
+	USurfaceMovementComponent* MovementComponent, const int32 MaxIterations, const float DeltaTime)
+{
+	for (int32 i = 0; i < MaxIterations; i++)
+	{
+		World.TickWorld(DeltaTime);
+		MovementComponent->ExecuteReadPhase();
+		MovementComponent->ExecuteSimulatePhase();
+		MovementComponent->ExecuteCommitPhase();
+
+		if (const FActiveSurfaceTransition* ActiveTransition = FSurfaceTransitionTestAccess::GetActiveTransition(MovementComponent); ActiveTransition != nullptr && ActiveTransition->bAwaitingArrivalRepin)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 #endif

@@ -228,4 +228,247 @@ bool FSurfaceTransitionCurveConstruction::RunTest(const FString& Parameters)
 		bResult10 && bResult11 && bResult12 && bResult13;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionBezierTraversal, "SurfaceNavigation.Movement.Transition.BezierTraversal",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceTransitionBezierTraversal::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+
+	const FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(TestWorld, Comp));
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+
+	const bool bResult3 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+
+	const FVector StartLocation = Mover->GetActorLocation();
+	const FRotator StartRotation = Mover->GetActorRotation();
+
+	Comp->ExecuteSimulatePhase();
+
+	const bool bResult4 = TestEqual(TEXT("Simulate must not move the actor; it only proposes the next transition transform"),
+		Mover->GetActorLocation(), StartLocation);
+	const bool bResult5 = TestEqual(TEXT("Simulate must not rotate the actor; it only proposes the next transition transform"),
+		Mover->GetActorRotation(), StartRotation);
+
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult6 = TestNotEqual(TEXT("Commit should apply the proposed transition position"),
+		Mover->GetActorLocation(), StartLocation);
+	const bool bResult7 = TestNotEqual(TEXT("Commit should apply the proposed transition rotation"),
+		Mover->GetActorRotation(), StartRotation);
+
+	const FActiveSurfaceTransition* ActiveTransition = FSurfaceTransitionTestAccess::GetActiveTransition(Comp);
+
+	const bool bResult8 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"), ActiveTransition);
+
+	if (!bResult8)
+	{
+		return false;
+	}
+
+	const double Step = ActiveTransition->EffectiveSpeed * (1.0 / 60.0);
+
+	bool bResult9 = true;
+
+	for (int8 i = 0; i < 4; i++)
+	{
+		const FVector PreviousLocation = Mover->GetActorLocation();
+		TestWorld.TickWorld(1.0 / 60.f);
+		Comp->ExecuteReadPhase();
+		Comp->ExecuteSimulatePhase();
+		Comp->ExecuteCommitPhase();
+
+		bResult9 = TestEqual(TEXT("Every non-final committed step should travel the frozen effective speed times delta time"),
+			FVector::Distance(Mover->GetActorLocation(), PreviousLocation), Step, 0.1) && bResult9;
+	}
+
+	const bool bResult10 = TestTrue(TEXT("The maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
+		TickUntilAwaitingArrivalRepin(TestWorld, Comp));
+
+	ActiveTransition = FSurfaceTransitionTestAccess::GetActiveTransition(Comp);
+
+	const bool bResult11 = TestNotNull(TEXT("The active transition snapshot must survive the endpoint Commit for the arrival repin"), ActiveTransition);
+
+	if (!bResult11)
+	{
+		return false;
+	}
+
+	const bool bResult12 = TestEqual(TEXT("The endpoint Commit should place the actor at the frozen destination"),
+		Mover->GetActorLocation(), Arrival.Position, KINDA_SMALL_NUMBER);
+	const bool bResult13 = TestEqual(TEXT("Position and Up should reach their frozen arrival values together"),
+		Mover->GetActorUpVector(), ActiveTransition->ArrivalNormal, KINDA_SMALL_NUMBER);
+
+	const bool bResult14 = TestEqual(TEXT("Reaching the endpoint transform must not leave Transitioning; the repin has not run"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Transitioning);
+	const bool bResult15 = TestEqual(TEXT("Reaching the endpoint transform is not completion; status must remain Active"),
+		Comp->GetTransitionStatus(),ESurfaceTransitionStatus::Active);
+
+	const FVector EndLocation = Mover->GetActorLocation();
+	const FRotator EndRotation = Mover->GetActorRotation();
+
+	for (int8 i = 0; i < 2; i++)
+	{
+		TestWorld.TickWorld(1/60.f);
+		Comp->ExecuteReadPhase();
+		Comp->ExecuteSimulatePhase();
+		Comp->ExecuteCommitPhase();
+	}
+
+	const bool bResult16 = TestEqual(TEXT("An endpoint-awaiting maneuver must produce no further movement while it waits for the repin"),
+		Mover->GetActorLocation(), EndLocation);
+	const bool bResult17 = TestEqual(TEXT("An endpoint-awaiting maneuver must produce no further rotation while it waits for the repin"),
+		Mover->GetActorRotation(), EndRotation);
+	const bool bResult18 = TestEqual(TEXT("Waiting frames must not publish a terminal status; completion belongs to the repin Commit"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 && bResult18;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionStraightGapTraversal, "SurfaceNavigation.Movement.Transition.StraightGapTraversal",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceTransitionStraightGapTraversal::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+
+	const FTransitionFixture Fixture = BuildStraightGapFixture(TestWorld, true);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	const FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+			PrimeCrawlingAttachment(TestWorld, Comp));
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+
+	TestWorld.TickWorld(1/60.f);
+
+	Comp->ExecuteReadPhase();
+
+	const bool bResult3 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+
+	const FActiveSurfaceTransition* ActiveTransition = FSurfaceTransitionTestAccess::GetActiveTransition(Comp);
+
+	const bool bResult4 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"),
+		ActiveTransition);
+
+	if (!bResult4)
+	{
+		return false;
+	}
+
+	const FRotator StartRotation = Mover->GetActorRotation();
+
+	const double Step = ActiveTransition->EffectiveSpeed * (1.0 / 60.0);
+
+	bool bResult5 = true;
+	for (int8 i = 0; i < 4; i++)
+	{
+		const FVector PreviousLocation = Mover->GetActorLocation();
+		TestWorld.TickWorld(1/60.f);
+		Comp->ExecuteReadPhase();
+		Comp->ExecuteSimulatePhase();
+		Comp->ExecuteCommitPhase();
+		bResult5 = TestEqual(TEXT("A straight gap bridge should advance at the frozen effective speed on every non-final step"),
+			FVector::Distance(Mover->GetActorLocation(), PreviousLocation), Step, 0.1) && bResult5;
+	}
+
+	const bool bResult6 = TestTrue(TEXT("The straight maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
+		TickUntilAwaitingArrivalRepin(TestWorld, Comp));
+
+	ActiveTransition = FSurfaceTransitionTestAccess::GetActiveTransition(Comp);
+
+	const bool bResult7 = TestNotNull(TEXT("The active transition snapshot must survive the endpoint Commit for the arrival repin"), ActiveTransition);
+
+	if (!bResult7)
+	{
+		return false;
+	}
+
+	const bool bResult8 = TestEqual(TEXT("A gap bridge without reorientation should still reach the frozen destination"),
+		Mover->GetActorLocation(), Arrival.Position, KINDA_SMALL_NUMBER);
+	const bool bResult9 = TestEqual(TEXT("Up should end at the frozen arrival normal, catching an arc that rotated and rotated back"),
+		Mover->GetActorUpVector(), ActiveTransition->ArrivalNormal, KINDA_SMALL_NUMBER);
+	const bool bResult10 = TestEqual(TEXT("A same-normal transition must never rotate the actor; the interpolated Up delta is identity"),
+		Mover->GetActorRotation(), StartRotation, KINDA_SMALL_NUMBER);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 && bResult10;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionBlockedSweep, "SurfaceNavigation.Movement.Transition.BlockedSweep",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FSurfaceTransitionBlockedSweep::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+
+	const FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
+
+	AddBlockingBoxAcrossQuadraticCurve(TestWorld, 50.f);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	const FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+			PrimeCrawlingAttachment(TestWorld, Comp));
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+
+	TestWorld.TickWorld(1/60.f);
+
+	Comp->ExecuteReadPhase();
+
+	const bool bResult3 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+
+	Comp->SetMovementTarget(FVector(1000,1000,0));
+
+	const bool bResult4 = TestTrue(TEXT("An obstacle across the arc should block the swept traversal within the iteration cap"),
+		TickUntilTransitionStatus(TestWorld, Comp, ESurfaceTransitionStatus::Blocked, 200));
+
+	const bool bResult5 = TestEqual(TEXT("A blocking sweep should publish Blocked as the transition status"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Blocked);
+	const bool bResult6 = TestEqual(TEXT("A blocking sweep should enter Falling; the actor is attached to neither surface"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Falling);
+	const bool bResult7 = TestNull(TEXT("A blocking sweep should clear the active transition so the maneuver cannot resume"),
+		FSurfaceTransitionTestAccess::GetActiveTransition(Comp));
+
+	const FVector BlockedLocation = Mover->GetActorLocation();
+
+	for (int8 i = 0; i < 4; i++)
+	{
+		TestWorld.TickWorld(1/60.f);
+		Comp->ExecuteReadPhase();
+		Comp->ExecuteSimulatePhase();
+		Comp->ExecuteCommitPhase();
+	}
+
+	const bool bResult8 = TestEqual(TEXT("Later frames must make no further curve progress and must not pursue the successor target"),
+		Mover->GetActorLocation(), BlockedLocation);
+	const bool bResult9 = TestEqual(TEXT("Blocked must persist as the pollable outcome until another request is admitted"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Blocked);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9;
+}
+
 #endif

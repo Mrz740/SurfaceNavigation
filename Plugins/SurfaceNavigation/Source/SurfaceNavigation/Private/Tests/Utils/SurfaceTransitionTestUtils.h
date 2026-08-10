@@ -39,6 +39,9 @@ namespace SurfaceTransitionTestUtils
 
 	bool TickUntilTransitionStatus(const FSurfaceMovementTestWorld& World, USurfaceMovementComponent* MovementComponent,
 		ESurfaceTransitionStatus TargetStatus, int32 MaxIterations = 5, float DeltaTime = 1.f / 60.f);
+
+	bool TickUntilAwaitingArrivalRepin(const FSurfaceMovementTestWorld& World, USurfaceMovementComponent* MovementComponent,
+		int32 MaxIterations = 200, float DeltaTime = 1.f / 60.f);
 }
 
 #endif
