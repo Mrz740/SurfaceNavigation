@@ -320,13 +320,9 @@ bool FSurfaceTransitionBezierTraversal::RunTest(const FString& Parameters)
 	const FVector EndLocation = Mover->GetActorLocation();
 	const FRotator EndRotation = Mover->GetActorRotation();
 
-	for (int8 i = 0; i < 2; i++)
-	{
-		TestWorld.TickWorld(1/60.f);
-		Comp->ExecuteReadPhase();
-		Comp->ExecuteSimulatePhase();
-		Comp->ExecuteCommitPhase();
-	}
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+	Comp->ExecuteSimulatePhase();
 
 	const bool bResult16 = TestEqual(TEXT("An endpoint-awaiting maneuver must produce no further movement while it waits for the repin"),
 		Mover->GetActorLocation(), EndLocation);

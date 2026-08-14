@@ -87,15 +87,37 @@ bool USurfaceMovementComponent::HandleTransitionState()
 		PendingTransitionOutput = FSurfaceTransitionOutput{};
 		MovementMode = ESurfaceMovementMode::Transitioning;
 		TransitionStatus = ESurfaceTransitionStatus::Active;
+		ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
 
 		return false;
 	}
 
 	if (MovementMode == ESurfaceMovementMode::Transitioning)
 	{
-		PendingProbeResult.bIsOnSurface = CommittedState.bIsOnSurface;
-		PendingProbeResult.SurfaceNormal = CommittedState.SurfaceNormal;
-		PendingProbeResult.ImpactPoint = CommittedState.ImpactPoint;
+		if (ActiveTransition->bAwaitingArrivalRepin)
+		{
+			const AActor* Owner = GetOwner();
+			const FVector Origin = Owner->GetActorLocation();
+			const FVector Direction = -ActiveTransition->ArrivalNormal;
+
+			FCollisionQueryParams Params;
+			Params.AddIgnoredActor(Owner);
+
+			FHitResult Hit;
+			const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,Origin,
+				Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
+
+			PendingProbeResult.bIsOnSurface = bHit;
+			PendingProbeResult.SurfaceNormal = Hit.ImpactNormal;
+			PendingProbeResult.ImpactPoint = Hit.ImpactPoint;
+			ArrivalRepinResult = bHit ? EArrivalRepinResult::Succeeded : EArrivalRepinResult::Failed;
+		}
+		else
+		{
+			PendingProbeResult.bIsOnSurface = CommittedState.bIsOnSurface;
+			PendingProbeResult.SurfaceNormal = CommittedState.SurfaceNormal;
+			PendingProbeResult.ImpactPoint = CommittedState.ImpactPoint;
+		}
 		return false;
 	}
 
@@ -282,7 +304,18 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 			return;
 		}
 
-		if (PendingTransitionOutput.bHasTransitionTransform)
+		if (ArrivalRepinResult == EArrivalRepinResult::Succeeded)
+		{
+			MovementMode = ESurfaceMovementMode::Crawling;
+			TransitionStatus = ESurfaceTransitionStatus::Completed;
+			ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
+			ActiveTransition.Reset();
+
+			CommittedState.bIsOnSurface = PendingProbeResult.bIsOnSurface;
+			CommittedState.ImpactPoint = PendingProbeResult.ImpactPoint;
+			CommittedState.SurfaceNormal = PendingProbeResult.SurfaceNormal;
+		}
+		else if (PendingTransitionOutput.bHasTransitionTransform)
 		{
 			FHitResult SweepHit;
 			GetOwner()->SetActorLocationAndRotation(PendingTransitionOutput.TargetPosition,
