@@ -467,4 +467,162 @@ bool FSurfaceTransitionBlockedSweep::RunTest(const FString& Parameters)
 	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionEndpointRepinTiming, "SurfaceNavigation.Movement.Transition.EndpointRepinTiming",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FSurfaceTransitionEndpointRepinTiming::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+	const FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	const FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+			PrimeCrawlingAttachment(TestWorld, Comp));
+
+	const FVector DepartureNormal = Comp->GetCommittedState().SurfaceNormal;
+
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+	const bool bResult3 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+
+	const bool bResult4 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+
+	const bool bResult5 = TestTrue(TEXT("The maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
+		TickUntilAwaitingArrivalRepin(TestWorld,Comp));
+
+	const bool bResult6 = TestEqual(TEXT("Reaching the endpoint transform is not completion; status must remain Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult7 = TestEqual(TEXT("Reaching the endpoint transform must not leave Transitioning; the repin has not run"),
+		Comp->GetMovementMode(),ESurfaceMovementMode::Transitioning);
+	const bool bResult8 = TestNotNull(TEXT("An accepted request should produce an active transition snapshot"),
+		FSurfaceTransitionTestAccess::GetActiveTransition(Comp));
+	const bool bResult9 = TestEqual(TEXT("The arc must never republish the committed surface; it stays the departure normal until the repin"),
+		Comp->GetCommittedState().SurfaceNormal, DepartureNormal);
+
+	const FVector EndLocation = Mover->GetActorLocation();
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+
+	const bool bResult10 = TestEqual(TEXT("The arrival Read must not publish a terminal status; completion belongs to the repin Commit"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult11 = TestEqual(TEXT("The arrival Read writes only the pending probe; the committed surface is still the departure normal"),
+		Comp->GetCommittedState().SurfaceNormal, DepartureNormal);
+	const bool bResult12 = TestNotEqual(TEXT("The arrival probe should trace along the frozen arrival normal and find the destination surface, not re-probe the departure surface"),
+		Comp->GetPendingProbeResult().SurfaceNormal, DepartureNormal);
+
+	Comp->ExecuteSimulatePhase();
+
+	const bool bResult13 = TestEqual(TEXT("Simulate must not publish a terminal status on the repin frame"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult14 = TestEqual(TEXT("Simulate must propose no movement on the repin frame; the endpoint transform is already committed"),
+		Mover->GetActorLocation(), EndLocation);
+
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult15 = TestEqual(TEXT("The repin Commit should publish Completed"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Completed);
+	const bool bResult16 = TestEqual(TEXT("A successful repin should return the component to Crawling"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Crawling);
+	const bool bResult17 = TestNull(TEXT("A successful repin must clear the active transition snapshot so later requests can be admitted"),
+		FSurfaceTransitionTestAccess::GetActiveTransition(Comp));
+	const bool bResult18 = TestTrue(TEXT("A successful repin should publish the destination surface as committed attachment"),
+		Comp->GetCommittedState().bIsOnSurface);
+	const bool bResult19 = TestEqual(TEXT("A successful repin should replace the departure normal with the arrival surface's hit normal"),
+		Comp->GetCommittedState().SurfaceNormal, Arrival.TransitionInfo->ArrivalNormal, KINDA_SMALL_NUMBER);
+	const bool bResult20 = TestEqual(TEXT("A successful repin should publish the probe's actual impact point on the arrival surface"),
+		Comp->GetCommittedState().ImpactPoint, FVector(290,0,50), 0.1f);
+	const bool bResult21 = TestEqual(TEXT("The repin Commit publishes probe evidence and must not move the actor"),
+		Mover->GetActorLocation(), EndLocation);
+	const bool bResult22 = TestTrue(TEXT("A completed transition must leave the component able to admit a new request"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 &&
+		bResult18 && bResult19 && bResult20 && bResult21 && bResult22;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionFailedArrivalRepin, "SurfaceNavigation.Movement.Transition.FailedArrivalRepin",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FSurfaceTransitionFailedArrivalRepin::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+	const FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, false);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	const FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+			PrimeCrawlingAttachment(TestWorld, Comp));
+
+	const FVector DepartureNormal = Comp->GetCommittedState().SurfaceNormal;
+	const FVector DepartureImpactPoint = Comp->GetCommittedState().ImpactPoint;
+
+	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+	const bool bResult3 = TestTrue(TEXT("The maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
+			TickUntilAwaitingArrivalRepin(TestWorld,Comp));
+
+	const FVector EndLocation = Mover->GetActorLocation();
+	const FRotator EndRotation = Mover->GetActorRotation();
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+
+	const bool bResult4 = TestEqual(TEXT("The arrival Read must not publish a terminal status, even when the probe finds no geometry"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult5 = TestFalse(TEXT("The arrival probe should report no surface when the destination geometry is absent"),
+		Comp->GetPendingProbeResult().bIsOnSurface);
+
+	Comp->ExecuteSimulatePhase();
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult6 = TestEqual(TEXT("A failed repin should publish FailedArrivalRepin"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::FailedArrivalRepin);
+	const bool bResult7 = TestEqual(TEXT("A failed repin should hand the actor to Falling and the ordinary recovery route"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Falling);
+	const bool bResult8 = TestNull(TEXT("A failed repin must clear the active transition snapshot so later requests can be admitted"),
+		FSurfaceTransitionTestAccess::GetActiveTransition(Comp));
+	const bool bResult9 = TestEqual(TEXT("A failed repin must preserve the last verified departure normal, not publish the missed probe's zero vector"),
+		Comp->GetCommittedState().SurfaceNormal, DepartureNormal);
+	const bool bResult10 = TestEqual(TEXT("A failed repin must preserve the last verified departure impact point"),
+		Comp->GetCommittedState().ImpactPoint, DepartureImpactPoint);
+	const bool bResult11 = TestTrue(TEXT("A failed repin leaves the last verified surface evidence intact for the next frame's recovery probe"),
+		Comp->GetCommittedState().bIsOnSurface);
+	const bool bResult12 = TestEqual(TEXT("A failed repin must not move the actor"),
+		Mover->GetActorLocation(), EndLocation);
+	const bool bResult13 = TestEqual(TEXT("A failed repin must not rotate the actor"),
+		Mover->GetActorRotation(),EndRotation);
+
+	for (int32 i = 0; i < 4; i++)
+	{
+		TestWorld.TickWorld(1/60.f);
+		Comp->ExecuteReadPhase();
+		Comp->ExecuteSimulatePhase();
+		Comp->ExecuteCommitPhase();
+	}
+
+	const bool bResult14 = TestEqual(TEXT("A failed landing must leave the actor where the arc ended; Falling produces no movement"),
+		Mover->GetActorLocation(), EndLocation);
+	const bool bResult15 = TestEqual(TEXT("Transition status is level-held; it stays FailedArrivalRepin until another request is admitted"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::FailedArrivalRepin);
+	const bool bResult16 = TestEqual(TEXT("A failed landing should stay in Falling while the recovery probe finds no surface"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Falling);
+	const bool bResult17 = TestEqual(TEXT("The probe's miss fallback should keep preserving the departure normal on later frames"),
+		Comp->GetCommittedState().SurfaceNormal, DepartureNormal);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17;
+}
+
 #endif

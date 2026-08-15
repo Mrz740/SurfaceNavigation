@@ -315,6 +315,19 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 			CommittedState.ImpactPoint = PendingProbeResult.ImpactPoint;
 			CommittedState.SurfaceNormal = PendingProbeResult.SurfaceNormal;
 		}
+		else if (ArrivalRepinResult == EArrivalRepinResult::Failed)
+		{
+			ActiveTransition.Reset();
+			bHasPendingTarget = false;
+			PendingMoveDelta = FVector::ZeroVector;
+
+			PendingSpeed = 0.f;
+			CommittedSpeed = 0.f;
+			MovementMode = ESurfaceMovementMode::Falling;
+			TransitionStatus = ESurfaceTransitionStatus::FailedArrivalRepin;
+
+			ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
+		}
 		else if (PendingTransitionOutput.bHasTransitionTransform)
 		{
 			FHitResult SweepHit;
