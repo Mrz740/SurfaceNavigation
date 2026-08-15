@@ -46,7 +46,7 @@ bool USurfaceMovementComponent::HandleTransitionState()
 				return RejectPendingTransition();
 			}
 
-			ControlPoint = ((DepartureTransform.GetLocation() + DestinationPosition) / 2) +
+			ControlPoint = (DepartureTransform.GetLocation() + DestinationPosition) / 2 +
 				2 * TransitionArcHeight * AveragedNormal;
 		}
 		else
@@ -96,16 +96,10 @@ bool USurfaceMovementComponent::HandleTransitionState()
 	{
 		if (ActiveTransition->bAwaitingArrivalRepin)
 		{
-			const AActor* Owner = GetOwner();
-			const FVector Origin = Owner->GetActorLocation();
 			const FVector Direction = -ActiveTransition->ArrivalNormal;
 
-			FCollisionQueryParams Params;
-			Params.AddIgnoredActor(Owner);
-
 			FHitResult Hit;
-			const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,Origin,
-				Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
+			const bool bHit = TraceForSurface(Direction, Hit);
 
 			PendingProbeResult.bIsOnSurface = bHit;
 			PendingProbeResult.SurfaceNormal = Hit.ImpactNormal;
@@ -132,8 +126,19 @@ bool USurfaceMovementComponent::RejectPendingTransition()
 	return true;
 }
 
-FVector USurfaceMovementComponent::EvaluateTransitionCurve(ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
-	const FVector& ControlPoint, const FVector& Destination, float T)
+bool USurfaceMovementComponent::TraceForSurface(const FVector& Direction, FHitResult& OutHit) const
+{
+	const AActor* Owner = GetOwner();
+	const FVector Origin = Owner->GetActorLocation();
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(Owner);
+
+	return GetWorld()->LineTraceSingleByChannel(OutHit,Origin,
+	 Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
+}
+
+FVector USurfaceMovementComponent::EvaluateTransitionCurve(const ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
+	const FVector& ControlPoint, const FVector& Destination, const float T)
 {
 	switch (CurveKind)
 	{
@@ -146,7 +151,7 @@ FVector USurfaceMovementComponent::EvaluateTransitionCurve(ESurfaceTransitionCur
 	}
 }
 
-TStaticArray<float, 17> USurfaceMovementComponent::BuildCumulativeDistanceTable(ESurfaceTransitionCurveKind CurveKind,
+TStaticArray<float, 17> USurfaceMovementComponent::BuildCumulativeDistanceTable(const ESurfaceTransitionCurveKind CurveKind,
 	const FVector& Start, const FVector& ControlPoint, const FVector& Destination)
 {
 	TStaticArray<float, 17> Table;
@@ -154,7 +159,7 @@ TStaticArray<float, 17> USurfaceMovementComponent::BuildCumulativeDistanceTable(
 
 	FVector PreviousPoint = EvaluateTransitionCurve(CurveKind, Start, ControlPoint, Destination, 0.f);
 
-	for (int8 i = 1; i <= 16; i++)
+	for (int32 i = 1; i <= 16; i++)
 	{
 		const float T = i / 16.f;
 		FVector Point = EvaluateTransitionCurve(CurveKind, Start, ControlPoint, Destination, T);
@@ -178,7 +183,7 @@ float USurfaceMovementComponent::LookupDistanceTableProgress(const TStaticArray<
 		return 0.f;
 	}
 
-	for (int8 i = 0; i < 16; i++)
+	for (int32 i = 0; i < 16; i++)
 	{
 		if (ClampedRequestedDistance <= Table[i + 1])
 		{
@@ -205,22 +210,16 @@ void USurfaceMovementComponent::ExecuteReadPhase()
 		return;
 	}
 
-	const AActor* Owner = GetOwner();
-	const FVector Origin = Owner->GetActorLocation();
 	const FVector Direction = -CommittedState.SurfaceNormal;
 
-	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(Owner);
-
 	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit,Origin,
-	 Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
+	const bool bHit = TraceForSurface(Direction, Hit);
 
 	if (!bHit && CommittedState.bIsOnSurface)
 	{
 		FHitResult RecoveryHit;
-		const bool bRecoveryHit = GetWorld()->LineTraceSingleByChannel(RecoveryHit, Origin,
-			Origin - Owner->GetActorUpVector() * ProbeDistance, ECC_WorldStatic, Params);
+
+		const bool bRecoveryHit = TraceForSurface(-GetOwner()->GetActorUpVector(), RecoveryHit);
 
 		PendingProbeResult.bIsOnSurface = bRecoveryHit;
 		PendingProbeResult.SurfaceNormal = bRecoveryHit ? RecoveryHit.ImpactNormal : CommittedState.SurfaceNormal;
@@ -265,7 +264,7 @@ void USurfaceMovementComponent::ExecuteSimulatePhase()
 		PendingTransitionOutput.TargetRotation = NextRotation;
 		PendingTransitionOutput.ProposedDistance = NextDistance;
 		PendingTransitionOutput.ProposedProgress = NextProgress;
-		PendingTransitionOutput.bReachedEndpoint = (NextDistance == ActiveTransition->TotalDistance);
+		PendingTransitionOutput.bReachedEndpoint = NextDistance == ActiveTransition->TotalDistance;
 		PendingTransitionOutput.bHasTransitionTransform = true;
 
 		return;

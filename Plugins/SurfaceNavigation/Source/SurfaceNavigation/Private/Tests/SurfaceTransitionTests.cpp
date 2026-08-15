@@ -190,7 +190,7 @@ bool FSurfaceTransitionCurveConstruction::RunTest(const FString& Parameters)
 		QuadActive->CumulativeDistanceTable[16], QuadActive->TotalDistance);
 
 	bool bMonotonic = true;
-	for (int8 i = 1; i <= 16; i++)
+	for (int32 i = 1; i <= 16; i++)
 	{
 		if (QuadActive->CumulativeDistanceTable[i] < QuadActive->CumulativeDistanceTable[i-1])
 		{
@@ -283,7 +283,7 @@ bool FSurfaceTransitionBezierTraversal::RunTest(const FString& Parameters)
 
 	bool bResult9 = true;
 
-	for (int8 i = 0; i < 4; i++)
+	for (int32 i = 0; i < 4; i++)
 	{
 		const FVector PreviousLocation = Mover->GetActorLocation();
 		TestWorld.TickWorld(1.0 / 60.f);
@@ -376,7 +376,7 @@ bool FSurfaceTransitionStraightGapTraversal::RunTest(const FString& Parameters)
 	const double Step = ActiveTransition->EffectiveSpeed * (1.0 / 60.0);
 
 	bool bResult5 = true;
-	for (int8 i = 0; i < 4; i++)
+	for (int32 i = 0; i < 4; i++)
 	{
 		const FVector PreviousLocation = Mover->GetActorLocation();
 		TestWorld.TickWorld(1/60.f);
@@ -451,7 +451,7 @@ bool FSurfaceTransitionBlockedSweep::RunTest(const FString& Parameters)
 
 	const FVector BlockedLocation = Mover->GetActorLocation();
 
-	for (int8 i = 0; i < 4; i++)
+	for (int32 i = 0; i < 4; i++)
 	{
 		TestWorld.TickWorld(1/60.f);
 		Comp->ExecuteReadPhase();
