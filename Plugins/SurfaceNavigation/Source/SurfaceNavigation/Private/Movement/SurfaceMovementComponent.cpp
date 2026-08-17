@@ -137,6 +137,16 @@ bool USurfaceMovementComponent::TraceForSurface(const FVector& Direction, FHitRe
 	 Origin + Direction * ProbeDistance, ECC_WorldStatic,Params);
 }
 
+void USurfaceMovementComponent::AbandonActiveTransition(const ESurfaceTransitionStatus Reason)
+{
+	ActiveTransition.Reset();
+	bHasPendingTarget = false;
+	CommittedSpeed = 0.f;
+	MovementMode = ESurfaceMovementMode::Falling;
+	TransitionStatus = Reason;
+	ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
+}
+
 FVector USurfaceMovementComponent::EvaluateTransitionCurve(const ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
 	const FVector& ControlPoint, const FVector& Destination, const float T)
 {
@@ -300,6 +310,8 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 		if (!ensureMsgf(ActiveTransition.IsSet(),
 			TEXT("MovementMode is Transitioning but ActiveTransition is unset")))
 		{
+			PendingMoveDelta = FVector::ZeroVector;
+			PendingSpeed = 0.f;
 			return;
 		}
 
@@ -316,16 +328,7 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 		}
 		else if (ArrivalRepinResult == EArrivalRepinResult::Failed)
 		{
-			ActiveTransition.Reset();
-			bHasPendingTarget = false;
-			PendingMoveDelta = FVector::ZeroVector;
-
-			PendingSpeed = 0.f;
-			CommittedSpeed = 0.f;
-			MovementMode = ESurfaceMovementMode::Falling;
-			TransitionStatus = ESurfaceTransitionStatus::FailedArrivalRepin;
-
-			ArrivalRepinResult = EArrivalRepinResult::NotAttempted;
+			AbandonActiveTransition(ESurfaceTransitionStatus::FailedArrivalRepin);
 		}
 		else if (PendingTransitionOutput.bHasTransitionTransform)
 		{
@@ -335,14 +338,7 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 
 			if (SweepHit.bBlockingHit)
 			{
-				ActiveTransition.Reset();
-				bHasPendingTarget = false;
-				PendingMoveDelta = FVector::ZeroVector;
-
-				PendingSpeed = 0.f;
-				CommittedSpeed = 0.f;
-				MovementMode = ESurfaceMovementMode::Falling;
-				TransitionStatus = ESurfaceTransitionStatus::Blocked;
+				AbandonActiveTransition(ESurfaceTransitionStatus::Blocked);
 			}
 			else
 			{
@@ -355,6 +351,8 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 			}
 			PendingTransitionOutput = FSurfaceTransitionOutput{};
 		}
+		PendingMoveDelta = FVector::ZeroVector;
+		PendingSpeed = 0.f;
 		return;
 	}
 
@@ -374,6 +372,8 @@ void USurfaceMovementComponent::ExecuteCommitPhase()
 		GetOwner()->AddActorWorldOffset(PendingMoveDelta, bSweepMovement);
 		CommittedSpeed = PendingSpeed;
 	}
+	PendingMoveDelta = FVector::ZeroVector;
+	PendingSpeed = 0.f;
 }
 
 bool USurfaceMovementComponent::RequestTransition(const FVector& DestinationPosition,

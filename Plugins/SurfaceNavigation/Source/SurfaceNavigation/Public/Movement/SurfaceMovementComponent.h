@@ -161,6 +161,8 @@ class SURFACENAVIGATION_API USurfaceMovementComponent : public UActorComponent, 
 	bool RejectPendingTransition();
 	bool TraceForSurface(const FVector& Direction, FHitResult& OutHit) const;
 
+	void AbandonActiveTransition(const ESurfaceTransitionStatus Reason);
+
 	static FVector EvaluateTransitionCurve(const ESurfaceTransitionCurveKind CurveKind, const FVector& Start,
 		const FVector& ControlPoint, const FVector& Destination, const float T);
 	static TStaticArray<float,17> BuildCumulativeDistanceTable(const ESurfaceTransitionCurveKind CurveKind,
