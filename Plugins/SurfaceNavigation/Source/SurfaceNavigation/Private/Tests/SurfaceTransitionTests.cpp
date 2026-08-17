@@ -106,44 +106,49 @@ bool FSurfaceTransitionOpposingNormals::RunTest(const FString& Parameters)
 
 	FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
 
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
 	FSurfaceTransitionInfo OpposingInfo;
 	OpposingInfo.DepartureNormal = FVector(0,0,1);
 	OpposingInfo.ArrivalNormal = FVector(0,0,-1);
 	OpposingInfo.bRequiresReorientation = true;
 
 	const FVector Destination = Fixture.Path.Waypoints[1].Position;
-	const FVector ActorLocation = Fixture.MovementActor->GetActorLocation();
+	const FVector ActorLocation = Mover->GetActorLocation();
 
 	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
-		PrimeCrawlingAttachment(TestWorld, Fixture.MovementComponent));
+		PrimeCrawlingAttachment(TestWorld, Comp));
 
-	const FRotator ActorRotation = Fixture.MovementActor->GetActorRotation();
+	const FRotator ActorRotation = Mover->GetActorRotation();
 
-	Fixture.MovementComponent->SetMovementTarget(FVector(0,0,0));
+	Comp->SetMovementTarget(FVector(0,0,0));
 
 	const bool bResult2 = TestTrue(TEXT("RequestTransition should accept opposing-normal metadata; admission never inspects normals"),
-		Fixture.MovementComponent->RequestTransition(Destination, OpposingInfo));
+		Comp->RequestTransition(Destination, OpposingInfo));
 	const bool bResult3 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),
-		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
 
-	Fixture.MovementComponent->ExecuteReadPhase();
+	Comp->ExecuteReadPhase();
 
 	const bool bResult4 = TestEqual(TEXT("Read should reject a maneuver whose averaged normal is too small to normalize"),
-		Fixture.MovementComponent->GetTransitionStatus(), ESurfaceTransitionStatus::Rejected);
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Rejected);
 	const bool bResult5 = TestEqual(TEXT("Rejection should preserve the prior movement mode instead of entering Transitioning"),
-		Fixture.MovementComponent->GetMovementMode(), ESurfaceMovementMode::Crawling);
+		Comp->GetMovementMode(), ESurfaceMovementMode::Crawling);
 	const bool bResult6 = TestEqual(TEXT("Read must not move the actor on a rejected request"),
-		Fixture.MovementActor->GetActorLocation(), ActorLocation);
-	const bool bResult6b = TestEqual(TEXT("Read must not rotate the actor on a rejected request"),
-		Fixture.MovementActor->GetActorRotation(), ActorRotation);
+		Mover->GetActorLocation(), ActorLocation);
+	const bool bResult7 = TestEqual(TEXT("Read must not rotate the actor on a rejected request"),
+		Mover->GetActorRotation(), ActorRotation);
 
-	Fixture.MovementComponent->ExecuteSimulatePhase();
-	Fixture.MovementComponent->ExecuteCommitPhase();
+	Comp->ExecuteSimulatePhase();
+	Comp->ExecuteCommitPhase();
 
-	const bool bResult7 = TestEqual(TEXT("A rejected request must clear the ordinary target so recovery cannot resume it"),
-				Fixture.MovementActor->GetActorLocation(), ActorLocation);
+	const bool bResult8 = TestEqual(TEXT("A rejected request must clear the ordinary target so recovery cannot resume it"),
+				Mover->GetActorLocation(), ActorLocation);
+	const bool bResult9 = TestFalse(TEXT("Rejection must clear the ordinary target outright, not merely leave it unpursued"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
 
-	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult6b && bResult7;
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionCurveConstruction, "SurfaceNavigation.Movement.Transition.CurveConstruction",
@@ -463,8 +468,10 @@ bool FSurfaceTransitionBlockedSweep::RunTest(const FString& Parameters)
 		Mover->GetActorLocation(), BlockedLocation);
 	const bool bResult9 = TestEqual(TEXT("Blocked must persist as the pollable outcome until another request is admitted"),
 		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Blocked);
+	const bool bResult10 = TestFalse(TEXT("A blocking sweep must clear the successor target; Falling alone is not what keeps it unpursued"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
 
-	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9;
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 && bResult10;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionEndpointRepinTiming, "SurfaceNavigation.Movement.Transition.EndpointRepinTiming",
@@ -573,6 +580,8 @@ bool FSurfaceTransitionFailedArrivalRepin::RunTest(const FString& Parameters)
 	const bool bResult3 = TestTrue(TEXT("The maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
 			TickUntilAwaitingArrivalRepin(TestWorld,Comp));
 
+	Comp->SetMovementTarget(FVector(1000,1000,0));
+
 	const FVector EndLocation = Mover->GetActorLocation();
 	const FRotator EndRotation = Mover->GetActorRotation();
 
@@ -620,9 +629,110 @@ bool FSurfaceTransitionFailedArrivalRepin::RunTest(const FString& Parameters)
 		Comp->GetMovementMode(), ESurfaceMovementMode::Falling);
 	const bool bResult17 = TestEqual(TEXT("The probe's miss fallback should keep preserving the departure normal on later frames"),
 		Comp->GetCommittedState().SurfaceNormal, DepartureNormal);
+	const bool bResult18 = TestFalse(TEXT("A failed repin must clear the successor target and recovery frames must not resurrect it"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
 
 	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
-		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17;
+		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 && bResult18;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSurfaceTransitionSuccessorTargetHandoff, "SurfaceNavigation.Movement.Transition.SuccessorTargetHandoff",
+								 EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FSurfaceTransitionSuccessorTargetHandoff::RunTest(const FString& Parameters)
+{
+	const FSurfaceMovementTestWorld TestWorld = FSurfaceMovementTestWorld();
+	const FTransitionFixture Fixture = BuildQuadraticReorientationFixture(TestWorld, true);
+
+	USurfaceMovementComponent* Comp = Fixture.MovementComponent;
+	const AActor* Mover = Fixture.MovementActor;
+
+	const FSurfaceWaypoint Arrival = Fixture.Path.Waypoints[1];
+
+	const FVector PreRequestTarget = FVector(50, 300, 50);
+	const FVector SuccessorA = FVector(250, -500, 50);
+	const FVector SuccessorB = FVector(250, 500, 50);
+
+	const bool bResult1 = TestTrue(TEXT("Movement component should reach the surface and start crawling before the transition is requested"),
+		PrimeCrawlingAttachment(TestWorld, Comp));
+
+	const FVector DepartureLocation = Mover->GetActorLocation();
+
+	Comp->SetMovementTarget(PreRequestTarget);
+
+	const bool bResult2 = TestTrue(TEXT("A target published before the request should occupy the single target slot"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
+	const bool bResult3 = TestTrue(TEXT("RequestTransition should accept a request when no transition is pending or active"),
+		Comp->RequestTransition(Arrival.Position, Arrival.TransitionInfo.GetValue()));
+	const bool bResult4 = TestEqual(TEXT("Accepting a request should publish Pending as the transition status"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Pending);
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+
+	const bool bResult5 = TestEqual(TEXT("Read should accept the pending request and publish Active"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Active);
+	const bool bResult6 = TestFalse(TEXT("Acceptance should clear the departure target; a target published before acceptance is not a successor"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
+
+	Comp->SetMovementTarget(SuccessorA);
+
+	const bool bResult7 = TestTrue(TEXT("SetMovementTarget should be admitted while a transition is active; the slot is not gated on movement mode"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
+	const bool bResult8 = TestEqual(TEXT("A successor published during an active transition should occupy the target slot"),
+		FSurfaceTransitionTestAccess::GetPendingTarget(Comp), SuccessorA);
+
+	Comp->SetMovementTarget(SuccessorB);
+
+	const bool bResult9 = TestEqual(TEXT("A second successor should replace the first; the slot holds one latest target and never a queue"),
+		FSurfaceTransitionTestAccess::GetPendingTarget(Comp), SuccessorB);
+
+	Comp->ExecuteSimulatePhase();
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult10 = TestEqual(TEXT("Simulate should ignore the successor while transitioning; the arc never leaves the departure-to-arrival plane"),
+		Mover->GetActorLocation().Y, 0.0, 0.1);
+	const bool bResult11 = TestNotEqual(TEXT("The traversal should still advance along the arc, so the unchanged-axis assertion cannot pass on an inert frame"),
+		Mover->GetActorLocation(), DepartureLocation);
+	const bool bResult12 = TestTrue(TEXT("The maneuver should reach its endpoint and await the arrival repin within the iteration cap"),
+		TickUntilAwaitingArrivalRepin(TestWorld, Comp));
+	const bool bResult13 = TestTrue(TEXT("The successor should survive the entire traversal; ignoring a target must not destroy it"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
+	const bool bResult14 = TestEqual(TEXT("A completed arc should leave the actor in the departure-to-arrival plane, never steered toward the successor"),
+		Mover->GetActorLocation().Y, 0.0, 0.1);
+
+	const FVector EndLocation = Mover->GetActorLocation();
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+	Comp->ExecuteSimulatePhase();
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult15 = TestEqual(TEXT("A successful repin should publish Completed"),
+		Comp->GetTransitionStatus(), ESurfaceTransitionStatus::Completed);
+	const bool bResult16 = TestEqual(TEXT("A successful repin should hand the actor back to Crawling"),
+		Comp->GetMovementMode(), ESurfaceMovementMode::Crawling);
+	const bool bResult17 = TestEqual(TEXT("The repin frame must produce no ordinary movement; Simulate returned early while awaiting the repin"),
+		Mover->GetActorLocation(), EndLocation);
+	const bool bResult18 = TestTrue(TEXT("A successor published after acceptance should be retained across completion"),
+		FSurfaceTransitionTestAccess::HasPendingTarget(Comp));
+	const bool bResult19 = TestEqual(TEXT("Completion should retain the latest successor, not resurrect the one it replaced"),
+		FSurfaceTransitionTestAccess::GetPendingTarget(Comp), SuccessorB);
+
+	const double Distance = FVector::Dist(Mover->GetActorLocation(), SuccessorB);
+
+	TestWorld.TickWorld(1/60.f);
+	Comp->ExecuteReadPhase();
+	Comp->ExecuteSimulatePhase();
+	Comp->ExecuteCommitPhase();
+
+	const bool bResult20 = TestLessThan(TEXT("Crawling should resume toward the successor on the first full RSC frame after completion"),
+		FVector::Dist(Mover->GetActorLocation(), SuccessorB), Distance);
+	const bool bResult21 = TestGreaterThan(TEXT("Resumed crawling should move toward the retained successor, not the replaced one"),
+		Mover->GetActorLocation().Y, EndLocation.Y);
+
+	return bResult1 && bResult2 && bResult3 && bResult4 && bResult5 && bResult6 && bResult7 && bResult8 && bResult9 &&
+		bResult10 && bResult11 && bResult12 && bResult13 && bResult14 && bResult15 && bResult16 && bResult17 &&
+		bResult18 && bResult19 && bResult20 && bResult21;
 }
 
 #endif

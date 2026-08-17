@@ -23,6 +23,16 @@ namespace SurfaceTransitionTestUtils
 		{
 			return Component->ActiveTransition.IsSet() ? &Component->ActiveTransition.GetValue() : nullptr;
 		}
+
+		static bool HasPendingTarget(const USurfaceMovementComponent* Component)
+		{
+			return Component->bHasPendingTarget;
+		}
+
+		static FVector GetPendingTarget(const USurfaceMovementComponent* Component)
+		{
+			return Component->PendingTarget;
+		}
 	};
 
 	FTransitionFixture BuildQuadraticReorientationFixture(const FSurfaceMovementTestWorld& World,
