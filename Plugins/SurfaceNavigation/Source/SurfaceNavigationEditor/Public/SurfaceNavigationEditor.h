@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+SURFACENAVIGATIONEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogSurfaceBake, Display, All)
+
 class FSurfaceNavigationEditorModule : public IModuleInterface
 {
 public:

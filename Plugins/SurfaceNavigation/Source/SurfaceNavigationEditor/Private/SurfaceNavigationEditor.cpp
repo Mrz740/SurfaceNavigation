@@ -2,6 +2,8 @@
 
 #include "SurfaceNavigationEditor.h"
 
+DEFINE_LOG_CATEGORY(LogSurfaceBake)
+
 #define LOCTEXT_NAMESPACE "FSurfaceNavigationEditorModule"
 
 void FSurfaceNavigationEditorModule::StartupModule()
@@ -16,5 +18,5 @@ void FSurfaceNavigationEditorModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
-	
+
 IMPLEMENT_MODULE(FSurfaceNavigationEditorModule, SurfaceNavigationEditor)
